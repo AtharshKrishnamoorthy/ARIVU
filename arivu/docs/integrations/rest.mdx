@@ -1,0 +1,51 @@
+---
+title: "REST API Integration"
+description: "Headless programmatic communication over JSON"
+---
+
+For entirely custom frontends, native iOS apps, or internal business portals, Arivu provides the `RESTIntegration` class. It exposes a lightweight, async-native FastAPI instance equipped with endpoints to communicate with your memory and pipeline layers structurally.
+
+## Starting the API
+
+The integration handles request parsing, pipeline invocation, and admin approval resolution dynamically.
+
+```python
+from arivu import Arivu
+from arivu.integrations import RESTIntegration
+
+db = Arivu.connect(...)
+
+rest_api = RESTIntegration(db=db)
+
+# Option A: Start Local Uvicorn Host 
+rest_api.start(host="0.0.0.0", port=8000)
+
+# Option B: Extract ASGI 
+fastapi_app = rest_api.get_fastapi_app()
+# $ uvicorn main:fastapi_app --host 0.0.0.0 --port 8000
+```
+
+## Standard API Payload Examples
+
+Pass `application/json` payloads directly against your target host. 
+
+<CodeGroup>
+```bash Execute Prompt
+curl -X POST http://localhost:8000/query \
+  -H "X-Api-Key: your-secret-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{"question": "show me top 10 recent orders", "user_id": "user_001"}'
+```
+
+```bash Provide RLHF Signal
+curl -X POST http://localhost:8000/feedback/sess-abc123 \
+  -H "X-Api-Key: your-secret-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{"signal": "positive"}'
+```
+
+```bash Resolve Admin Query
+curl -X POST http://localhost:8000/approve/sess-abc123 \
+  -H "X-Api-Key: your-secret-api-key"
+```
+</CodeGroup>

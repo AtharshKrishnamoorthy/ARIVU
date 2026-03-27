@@ -1,0 +1,27 @@
+---
+title: "Database Connections"
+description: "Manage endpoints across relational boundaries"
+---
+
+The Connector View inside the Arivu Dashboard simplifies orchestrating multiple isolated data clusters.
+
+## Managing Topologies
+Arivu permits connecting and testing live relational databases directly. 
+
+*   **PostgreSQL**: Cloud or hybrid clusters (e.g., Neon, Supabase, RDS)
+*   **MySQL**: Relational warehousing endpoints
+*   **SQLite**: Local flat files for persistent lightweight edge applications.
+
+<Steps>
+  <Step title="Add Connection Alias">
+    Assign a memorable name (e.g., `Production DB`) and indicate the target SQL dialect.
+  </Step>
+
+  <Step title="Configure Connectivity">
+    Input your `Host`, `Port`, `Username`, `Password`, and `Database Name`. If necessary, select between Read-Only (User) or Full-Access (Admin) mode.
+  </Step>
+
+  <Step title="Validation Tests">
+    Click **Test Connection** to execute a handshake protocol. If the engine indicator turns <span className="text-emerald-500 font-bold">Green</span>, you can safely save it into global memory!
+  </Step>
+</Steps>

@@ -1,0 +1,43 @@
+---
+title: "Custom Integrations"
+description: "Bind Arivu to any frontend ecosystem"
+---
+
+Arivu provides a uniform event-loop standard designed specifically to integrate your `Arivu` engine class directly into messaging endpoints like Slack, Discord, Telegram, or custom Enterprise Chat portals. 
+
+## The `BaseIntegration` Blueprint
+
+Building a new integration requires extending the core `BaseIntegration` foundation. The abstraction automatically binds your integration context to the active SQLite/Redis `memory` layer and the `pipeline` orchestrator routing.
+
+```python
+from arivu.integrations import BaseIntegration
+
+class SlackIntegration(BaseIntegration):
+    """Example skeleton for a custom Slack deployment."""
+
+    def start(self) -> None:
+        # 1. Wire up your Slack Bolt/SocketMode listener
+        pass
+
+    def stop(self) -> None:
+        # 2. Halt threads gracefully
+        pass
+
+    def send_message(self, user_id: str, text: str) -> None:
+        # 3. Method to push the LLM string back to the user
+        # Ex: client.chat_postMessage(channel=user_id, text=text)
+        pass
+
+    def send_approval_request(
+        self, user_id: str, sql: str, question: str, session_id: str
+    ) -> None:
+        # 4. Method to push Interactive Block elements alerting an Admin
+        pass
+```
+
+## Out-of-the-Box Examples
+
+Read further into our native adaptors to view production-ready examples:
+*   [Telegram](/integrations/telegram)
+*   [WhatsApp (Twilio)](/integrations/whatsapp)
+*   [FastAPI REST API](/integrations/rest)

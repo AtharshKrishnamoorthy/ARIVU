@@ -1,0 +1,89 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "name": "Arivu Documentation",
+  "theme": "mint",
+  "colors": {
+    "primary": "#10B981",
+    "light": "#34D399",
+    "dark": "#047857"
+  },
+  "logo": {
+    "light": "/logo/light.png",
+    "dark": "/logo/dark.png"
+  },
+  "favicon": "/favicon.svg",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "index",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Dashboard Interface",
+            "pages": [
+              "dashboard/overview",
+              "dashboard/connections",
+              "dashboard/llms"
+            ]
+          },
+          {
+            "group": "Python SDK",
+            "pages": [
+              "sdk/usage"
+            ]
+          },
+          {
+            "group": "Core Architecture",
+            "pages": [
+              "architecture/pipeline",
+              "architecture/memory"
+            ]
+          },
+          {
+            "group": "Integrations Ecosystem",
+            "pages": [
+              "integrations/overview",
+              "integrations/telegram",
+              "integrations/whatsapp",
+              "integrations/rest"
+            ]
+          }
+        ]
+      }
+    ],
+    "global": {
+      "anchors": [
+        {
+          "anchor": "GitHub",
+          "href": "https://github.com/arivu-io/arivu",
+          "icon": "github"
+        }
+      ]
+    }
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "Website",
+        "href": "https://arivu.io"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Star on GitHub",
+      "href": "https://github.com/arivu-io/arivu"
+    }
+  },
+  "footer": {
+    "socials": {
+      "x": "https://x.com/arivu_io",
+      "github": "https://github.com/arivu-io/arivu"
+    }
+  }
+}

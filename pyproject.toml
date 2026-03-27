@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arivu-ai"
+version = "0.1.0"
+description = "The open-source framework for autonomous database agents."
+readme = "README.md"
+authors = [
+  { name="Arivu AI", email="atharshkrishnamoorthy@gmail.com" }
+]
+license = {text = "MIT"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "sqlalchemy",
+    "python-dotenv",
+    "langgraph",
+    "langchain-groq",
+    "langchain-huggingface",
+    "langchain-community",
+    "faiss-cpu",
+    "sentence-transformers",
+    "psycopg2-binary",
+    "pymysql",
+    "fastapi",
+    "uvicorn[standard]",
+    "python-telegram-bot",
+    "flask",
+    "twilio",
+    "requests",
+    "pydub",
+    "pytesseract",
+    "Pillow",
+    "redis",
+    "SpeechRecognition",
+    "grandalf"
+]
+requires-python = ">=3.10"
+
+[project.urls]
+"Homepage" = "https://github.com/arivu-io/arivu"
+"Documentation" = "https://arivu.mintlify.app/"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["arivu*"]
+exclude = ["arivu.dashboard*", "arivu.docs*", "arivu.examples*"]
+

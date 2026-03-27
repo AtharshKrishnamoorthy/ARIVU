@@ -1,0 +1,67 @@
+---
+title: "Quickstart"
+description: "Start querying your databases autonomously"
+---
+
+## Prerequisites
+
+Before installing Arivu, ensure you have the following configurations available in your environment:
+
+*   **Python 3.10+** (Arivu depends heavily on the modern AsyncIO stack)
+*   **Operating System:** Linux, macOS, or Windows (via WSL2 recommended)
+*   At least one live database endpoint (PostgreSQL, MySQL, or a local SQLite file)
+*   An API Key for your preferred Language Model (e.g., `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`)
+
+## Installation
+
+The Arivu core engine is distributed via PyPI. You can install it natively using pip or your preferred package manager (e.g., poetry, pdm, uv).
+
+<CodeGroup>
+```bash pip
+pip install arivu
+```
+```bash poetry
+poetry add arivu
+```
+```bash uv
+uv pip install arivu
+```
+</CodeGroup>
+
+<Steps>
+  <Step title="Initialize the Arivu Engine">
+    To begin executing natural language queries against your database, you must first initialize an Arivu engine binding. Ensure that your API keys are visible in your environment `.env`.
+
+    ```python main.py
+    import os
+    from arivu import Arivu
+    
+    # Establish connection with your relational database
+    engine = Arivu.connect(
+        database_url="postgresql://user:pass@localhost:5432/db",
+        llm_provider="openai",
+        monitoring=True
+    )
+    ```
+  </Step>
+
+  <Step title="Execute a Pipeline Request">
+    Once the engine proxy is created, you can execute dynamic text-to-SQL logic by sending a natural language prompt.
+
+    ```python main.py
+    # Formulate a natural language query
+    q = engine.query("What were our top 3 highest revenue products last quarter?")
+    
+    # Run the intelligent execution pipeline
+    response = engine.run_pipeline(q)
+    
+    print(response.get("result"))
+    ```
+  </Step>
+</Steps>
+
+## Launching the Web Dashboard
+
+If you prefer a visual observability interface, Arivu provides an underlying Next.js dashboard template that binds tightly to your core configuration. 
+
+Wait for our comprehensive [Dashboard Guide](/dashboard/overview) on how to spin up the local graphical user interface!

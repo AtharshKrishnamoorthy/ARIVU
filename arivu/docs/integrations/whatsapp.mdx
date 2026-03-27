@@ -1,0 +1,41 @@
+---
+title: "WhatsApp API Integration"
+description: "Expose database pipelines via Twilio WhatsApp Webhooks"
+---
+
+The Arivu `WhatsAppIntegration` serves as an active wrapper over the **Twilio WhatsApp API**. Rather than using long-polling websockets like Telegram, the WhatsApp integration spins up a native Flask server to listen for Twilio payloads.
+
+## Global Prerequisites
+
+Before running the Integration server, ensure you have exported your Twilio configurations:
+
+```bash
+export TWILIO_ACCOUNT_SID="ACe8..."
+export TWILIO_AUTH_TOKEN="..."
+export TWILIO_WHATSAPP_FROM="whatsapp:+14155238886"
+```
+
+## Spin Up the Flask Listener
+
+The framework exposes a dual-mode initialization block. You can either block the main thread executing an internal Flask app, or request the app object and supply it to a production WSGI runtime (like `gunicorn`).
+
+```python
+from arivu import Arivu
+from arivu.integrations import WhatsAppIntegration
+
+db = Arivu.connect(...)
+
+whatsapp_bot = WhatsAppIntegration(
+    db=db,
+    admin_numbers=["+19876543210"],
+)
+
+# Option A: Local Blocking Development Server
+whatsapp_bot.start(host="0.0.0.0", port=8000)
+
+# Option B: Extract to Gunicorn
+flask_app = whatsapp_bot.get_flask_app()
+# $ gunicorn "main:flask_app" -w 4 -b 0.0.0.0:8000
+```
+
+Once live, insert your external server URL appended with `/webhook` into your Twilio inbound messaging router.

@@ -1,0 +1,33 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+.venv/
+.venv/**
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+**/*.egg-info/
+
+# ── Secrets ───────────────────────────────────────────────────────────────────
+.env
+arivu/.env
+*.env
+
+# ── PyPI Build Artifacts ──────────────────────────────────────────────────────
+dist/
+build/
+arivu-*/
+strip_license_file.py
+
+# ── Node.js / Next.js Dashboard ───────────────────────────────────────────────
+node_modules/
+**/node_modules/
+.next/
+**/.next/
+.vercel/
+
+# ── OS / Editor ───────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/settings.json

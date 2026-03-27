@@ -1,0 +1,69 @@
+---
+title: Introduction
+description: "Welcome to the Arivu Documentation"
+---
+
+<img
+  className="block dark:hidden"
+  src="/images/hero-light.png"
+  alt="Hero Light"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/hero-dark.png"
+  alt="Hero Dark"
+/>
+
+## What is Arivu?
+
+Arivu is an open-source framework designed for building autonomous database agents. It bridges the gap between raw data warehouses and large language models (LLMs) by offering a dual-layer approach:
+
+1. **A Powerful Python SDK**: Allows engineers to orchestrate text-to-SQL pipelines, hook up custom agents, and seamlessly inject memory layers.
+2. **A Sleek Dashboard UI**: A Next.js-based no-code observability platform designed for teams to instantly connect dialects, select cloud models, execute conversational prompts, and inspect pipeline execution latency.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card
+    title="Multi-Dialect Federation"
+    icon="database"
+    href="/dashboard/connections"
+  >
+    Securely manage simultaneous connections across PostgreSQL, MySQL, and SQLite seamlessly with zero configuration drift.
+  </Card>
+  <Card
+    title="LLM Routing"
+    icon="brain-circuit"
+    href="/dashboard/llms"
+  >
+    Dynamically route prompts to OpenAI, Anthropic, Groq, Ollama, DeepSeek, or HuggingFace from the application layer.
+  </Card>
+  <Card
+    title="Pipeline Observability"
+    icon="chart-simple"
+    href="/dashboard/overview"
+  >
+    Granularly inspect execution traces, context generation latency, and compilation errors inside a beautiful dark-mode interface.
+  </Card>
+  <Card
+    title="Agentic Deployment"
+    icon="code"
+    href="/sdk/usage"
+  >
+    Use our streamlined `pip install arivu` Python toolkit to extend custom tooling natively inside your production apps.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+Learn how to get Arivu running locally in less than 60 seconds.
+
+<CardGroup cols={1}>
+  <Card
+    title="Quickstart Guide"
+    icon="bolt"
+    href="/quickstart"
+  >
+    Explore our quickstart tutorial to launch the Arivu ecosystem.
+  </Card>
+</CardGroup>

@@ -1,0 +1,38 @@
+---
+title: "Telegram Bot Integration"
+description: "Deploy Arivu natively to Telegram users"
+---
+
+The `TelegramIntegration` class wraps the `python-telegram-bot` driver allowing you to launch an autonomous database query bot over Telegram in seconds. 
+
+## Initialization
+
+Pass your active Arivu engine proxy, the Telegram API token (provided by BotFather), and a list of numeric Admin User IDs capable of approving destructive DB commands.
+
+```python
+from arivu import Arivu
+from arivu.integrations import TelegramIntegration
+
+# 1. Spawn Context
+db = Arivu.connect(
+    database_url="postgresql://user:pass@localhost:5432/main",
+    llm_provider="openai",
+    mode="admin"
+)
+
+# 2. Initialize the Bot Layer
+telegram_bot = TelegramIntegration(
+    db=db,
+    token="YOUR_TELEGRAM_BOT_TOKEN",
+    admin_user_ids=[123456789] 
+)
+
+# 3. Open WebSockets (Blocking Event Loop)
+telegram_bot.start()
+```
+
+## Admin Approval Flows
+
+If a user prompts the `telegram_bot` with a command requiring database mutation (e.g., `Update the user's tier to premium`), the LangGraph pipeline halts. 
+
+A notification containing the generated raw `<SQL>` payload and inline **Approve** or **Reject** buttons is sent explicitly to the mapped `admin_user_ids`. The execution graph remains paused indefinitely until an Admin resolves the webhook state.

@@ -1,0 +1,30 @@
+---
+title: "Dashboard Overview"
+description: "Visual observability for autonomous AI databases"
+---
+
+The Arivu Dashboard provides a no-code visual interface powered by a sleek dark-mode Next.js application. It is explicitly engineered to monitor your text-to-SQL data pipelines and evaluate Agentic Generation (LLM) traces.
+
+## Core Features
+
+### Universal Search & Filtering
+Easily command-line `ctrl+k` or traverse the global sidebar to access conversational latencies, SQL compilation traces, and historical memory caches across infinite project sessions. 
+
+### Multi-Database Management
+Manage active connection strings to `PostgreSQL`, `MySQL`, and `SQLite` seamlessly. Test connection health visually before invoking data pipelines.
+
+---
+
+### Local Deployment
+
+To run the dashboard locally for your internal team, invoke the web application from your root `arivu` engine directory:
+
+<CodeGroup>
+```bash Terminal
+cd dashboard/frontend
+npm install
+npm run dev
+```
+</CodeGroup>
+
+Your interactive dashboard will now be live on `http://localhost:3000`.

@@ -1,0 +1,8 @@
+include README.md
+include LICENSE
+
+# Exclude the Next.js dashboard frontend from source distribution
+prune arivu/dashboard
+prune arivu/docs
+prune arivu/examples
+prune .venv

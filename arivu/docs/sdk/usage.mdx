@@ -1,0 +1,43 @@
+---
+title: "SDK Pipeline Actions"
+description: "Execute pipelines procedurally inside Python"
+---
+
+Arivu provides a robust, heavily type-hinted programmatic API via the core `Arivu` class.
+
+## Understanding the Engine Instance
+
+The `Arivu` engine is the central router handling context distillation and LLM inference. Ensure you have properly bound an active configuration before evaluating logic:
+
+```python
+from arivu import Arivu
+
+db_app = Arivu.connect(
+    database_url="sqlite:///local.db",
+    llm_provider="anthropic",
+    monitoring=True
+)
+```
+
+## Running Raw Queries
+
+Use the `run_pipeline` method to feed a compiled `query` node into the asynchronous workflow execution queue.
+
+```python
+# 1. Compile User Input
+q = db_app.query("Give me a summary of all active customers grouped by region.")
+
+# 2. Await the Pipeline
+results = db_app.run_pipeline(q)
+
+# 3. Handle Responses
+if results.get("error"):
+    print("Execution failed:", results["error"])
+else:
+    print("LLM Response:", results["response"])
+    print("Generated SQL:", results["sql"])
+```
+
+## Advanced Operations
+
+You can inject telemetry manually or bypass the natural language processing graph by passing SQL evaluation natively if needed. Arivu wraps exceptions with clean standard implementations (`ArivuError`, `ConnectionError`, `AuthError`).
