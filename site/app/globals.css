@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+/* Force dark background everywhere — override Tailwind v4 reset */
+html,
+body {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+/* Ensure no light-mode leak from preflight */
+*, *::before, *::after {
+  border-color: rgba(255, 255, 255, 0.1);
+}
