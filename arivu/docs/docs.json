@@ -3,13 +3,13 @@
   "name": "Arivu Documentation",
   "theme": "mint",
   "colors": {
-    "primary": "#10B981",
-    "light": "#34D399",
-    "dark": "#047857"
+    "primary": "#333333",
+    "light": "#666666",
+    "dark": "#111111"
   },
   "logo": {
-    "light": "/logo/light.png",
-    "dark": "/logo/dark.png"
+    "light": "/images/arivu-logo-light.png",
+    "dark": "/images/arivu-logo-dark.png"
   },
   "favicon": "/favicon.svg",
   "navigation": {
@@ -61,7 +61,7 @@
       "anchors": [
         {
           "anchor": "GitHub",
-          "href": "https://github.com/arivu-io/arivu",
+          "href": "https://github.com/AtharshKrishnamoorthy/ARIVU",
           "icon": "github"
         }
       ]
@@ -77,13 +77,13 @@
     "primary": {
       "type": "button",
       "label": "Star on GitHub",
-      "href": "https://github.com/arivu-io/arivu"
+      "href": "https://github.com/AtharshKrishnamoorthy/ARIVU"
     }
   },
   "footer": {
     "socials": {
       "x": "https://x.com/arivu_io",
-      "github": "https://github.com/arivu-io/arivu"
+      "github": "https://github.com/AtharshKrishnamoorthy/ARIVU"
     }
   }
 }
