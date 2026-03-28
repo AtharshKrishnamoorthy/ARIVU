@@ -36,7 +36,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-white/60">
                 <Link href="/#features" className="transition-colors hover:text-white">Features</Link>
                 <Link href="/#integrations" className="transition-colors hover:text-white">Integrations</Link>
-                <Link href="/#sdk" className="transition-colors hover:text-white">SDK</Link>
+                <Link href="https://pypi.org/project/arivu-ai/" target="_blank" className="transition-colors hover:text-white">SDK</Link>
+                <Link href="https://arivu.mintlify.app/" target="_blank" className="transition-colors hover:text-white">Docs</Link>
               </nav>
             </div>
 
@@ -75,8 +76,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <h4 className="font-semibold mb-4 text-sm text-white/90">Ecosystem</h4>
                 <ul className="space-y-3 text-sm text-white/50">
                   <li><Link href="/#features" className="hover:text-white transition-colors">Dashboard</Link></li>
-                  <li><Link href="/#sdk" className="hover:text-white transition-colors">Python SDK</Link></li>
-                  <li><Link href="/#integrations" className="hover:text-white transition-colors">Integrations</Link></li>
+                  <li><Link href="https://pypi.org/project/arivu-ai/" target="_blank" className="hover:text-white transition-colors">Python SDK</Link></li>
+                  <li><Link href="https://arivu.mintlify.app/" target="_blank" className="hover:text-white transition-colors">Documentation</Link></li>
                 </ul>
               </div>
               <div>

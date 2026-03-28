@@ -1,5 +1,5 @@
 <div align="center">
-  <a href="https://arivu.io">
+  <a href="https://arivu-omega.vercel.app">
     <picture>
       <source media="(prefers-color-scheme: dark)" srcset="site/public/arivu-logo-dark.png">
       <img alt="Arivu Framework" src="site/public/arivu-logo-light.png" width="300">
@@ -17,8 +17,8 @@
   <p>
     <a href="https://pypi.org/project/arivu-ai/"><img src="https://img.shields.io/pypi/v/arivu-ai?color=emerald&label=pypi" alt="PyPI version"></a>
     <a href="https://github.com/AtharshKrishnamoorthy/ARIVU/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
-    <a href="https://arivu.io"><img src="https://img.shields.io/badge/Website-arivu.io-black" alt="Website"></a>
-    <a href="https://arivu.io/docs"><img src="https://img.shields.io/badge/Docs-Mintlify-047857" alt="Docs"></a>
+    <a href="https://arivu-omega.vercel.app"><img src="https://img.shields.io/badge/Website-arivu--omega.vercel.app-black" alt="Website"></a>
+    <a href="https://arivu.mintlify.app/"><img src="https://img.shields.io/badge/Docs-Mintlify-047857" alt="Docs"></a>
     <a href="https://github.com/AtharshKrishnamoorthy/ARIVU/stargazers"><img src="https://img.shields.io/github/stars/AtharshKrishnamoorthy/ARIVU?style=social" alt="GitHub stars"></a>
   </p>
 </div>
@@ -121,7 +121,7 @@ Visit `http://localhost:3000` to visually manage connections, test prompts, and 
 
 ## 📖 Documentation
 
-For detailed guides, API references, architecture diagrams, and more SDK examples, check out our [official documentation](https://arivu.io/docs).
+For detailed guides, API references, architecture diagrams, and more SDK examples, check out our [official documentation](https://arivu.mintlify.app/).
 
 ---
 

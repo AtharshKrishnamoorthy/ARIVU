@@ -73,7 +73,9 @@ def route_after_admin_approval(state: GraphState) -> str:
     """
     if state.approved is True:
         return "db_execution"
-    return "error_boundary"
+    if state.approved is False:
+        return "error_boundary"      # explicit reject
+    return "pending_end" 
 
 
 # ─────────────────────────────────────────────────────────────────────────────
