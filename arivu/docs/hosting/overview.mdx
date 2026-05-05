@@ -1,0 +1,113 @@
+---
+title: "Hosting Overview"
+description: "Deploy Arivu to production on AWS, Azure, DigitalOcean, and more"
+---
+
+Arivu is a containerized, scalable architecture designed for cloud deployment. This section provides detailed guidance for deploying Arivu across multiple cloud platforms and hosting providers.
+
+## Architecture Overview
+
+Arivu consists of three main deployable components:
+
+<Columns cols={3}>
+  <Card title="Backend API" icon="server">
+    FastAPI/Uvicorn server running the pipeline and integrations
+  </Card>
+  <Card title="Frontend Dashboard" icon="layout-grid">
+    Next.js React application for visualization and management
+  </Card>
+  <Card title="Supporting Services" icon="database">
+    Memory backend (Redis/SQLite), database connectors, LLM clients
+  </Card>
+</Columns>
+
+## Deployment Models
+
+<Tabs>
+  <Tab title="Single Cloud Provider">
+    Complete deployment on one platform (AWS, Azure, GCP, etc.)
+    - Simplified management
+    - Single vendor lock-in
+    - Consistent security policies
+  </Tab>
+  <Tab title="Multi-Cloud">
+    Distribute components across providers
+    - Reduce vendor lock-in
+    - Geographic redundancy
+    - Increased complexity
+  </Tab>
+  <Tab title="Hybrid">
+    Mix of cloud and on-premises
+    - Compliance requirements
+    - Data residency constraints
+    - Enhanced flexibility
+  </Tab>
+</Tabs>
+
+## Key Considerations
+
+<AccordionGroup>
+  <Accordion title="Scalability" defaultOpen icon="trending-up">
+    - **Backend**: Horizontal scaling with load balancing
+    - **Frontend**: CDN distribution for static assets
+    - **Database**: Connection pooling and replication
+    - **Memory**: Redis cluster for distributed state
+  </Accordion>
+  
+  <Accordion title="Performance" icon="zap">
+    - **Latency**: Deploy close to users and databases
+    - **Caching**: Browser cache + Redis for query results
+    - **Async**: FastAPI async operations for concurrency
+    - **Optimization**: Image compression, code splitting
+  </Accordion>
+  
+  <Accordion title="Security" icon="shield">
+    - **API Keys**: Secure storage in secrets manager
+    - **Database credentials**: Never in code
+    - **TLS/HTTPS**: Enforce across all communications
+    - **RBAC**: Role-based access control
+    - **Network isolation**: Private VPCs, security groups
+  </Accordion>
+  
+  <Accordion title="Cost Optimization" icon="dollar-sign">
+    - **Compute**: Right-size instances, use spot/preemptible VMs
+    - **Storage**: Use managed services where available
+    - **Data transfer**: Minimize cross-region traffic
+    - **Monitoring**: Pay-per-use or reserved capacity
+  </Accordion>
+  
+  <Accordion title="Reliability" icon="shield-check">
+    - **HA**: Multi-AZ deployments
+    - **Backup**: Automated database backups
+    - **Failover**: Health checks and auto-recovery
+    - **Monitoring**: Real-time alerting
+  </Accordion>
+</AccordionGroup>
+
+## Recommended Platforms
+
+| Platform | Best For | Complexity | Cost |
+|----------|----------|-----------|------|
+| **AWS ECS** | Most flexible, largest ecosystem | Medium | $$$ |
+| **AWS EKS** | Kubernetes-first, multi-cloud | High | $$$ |
+| **Azure App Service** | Quick deployment, integrated tools | Low | $$ |
+| **Azure Container Instances** | Simple containerized apps | Low | $$ |
+| **DigitalOcean App Platform** | Simplicity, affordability | Low | $ |
+| **Vercel** | Frontend only, zero-config | Very Low | $ |
+| **Heroku** | Rapid prototyping | Very Low | $$ |
+
+## Next Steps
+
+Start with your preferred platform:
+
+<CardGroup>
+  <Card title="AWS Deployment" icon="aws" href="/hosting/aws">
+    ECS, EKS, Lambda, and RDS options
+  </Card>
+  <Card title="Azure Deployment" icon="azure" href="/hosting/azure">
+    App Service, Container Instances, and managed databases
+  </Card>
+  <Card title="Other Platforms" icon="globe" href="/hosting/other">
+    DigitalOcean, Vercel, Heroku, and self-hosted
+  </Card>
+</CardGroup>

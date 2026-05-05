@@ -208,6 +208,8 @@ class RedisMemoryBackend(BaseMemoryBackend):
         question: str,
         sql: str,
         trace_events: list[dict],
+        dialect: str = "",
+        connection_meta: dict = None,
     ) -> None:
         ts = time.time()
         blob = json.dumps({
@@ -218,13 +220,23 @@ class RedisMemoryBackend(BaseMemoryBackend):
             "question": question,
             "sql": sql,
             "trace_events": trace_events,
+            "dialect": dialect,
+            "connection_meta": connection_meta or {},
             "ts": ts,
         })
         self._r.zadd(f"{KEY_PREFIX}errors", {blob: ts})
 
     def get_error_log(self, limit: int = 100) -> list[dict]:
         raw = self._r.zrevrange(f"{KEY_PREFIX}errors", 0, limit - 1)
-        return [json.loads(r) for r in raw]
+        result = []
+        for r in raw:
+            d = json.loads(r)
+            d.pop("trace_events", None)
+            # Ensure dialect + connection_meta are present
+            d.setdefault("dialect", "")
+            d.setdefault("connection_meta", {})
+            result.append(d)
+        return result
 
     # ─────────────────────────────────────────
     # Dashboard queries
@@ -271,6 +283,52 @@ class RedisMemoryBackend(BaseMemoryBackend):
                 "error_count": 0,   # Redis: error count per session not pre-aggregated
             })
         return result
+
+    def get_dashboard_stats(self) -> dict:
+        total_sessions = self._r.zcard(f"{KEY_PREFIX}sessions") or 0
+        total_errors = self._r.zcard(f"{KEY_PREFIX}errors") or 0
+        
+        # RLHF stats
+        rlhf_entries = self.get_rlhf_log(limit=1000, signal_filter=None)
+        positive_rlhf = sum(1 for r in rlhf_entries if r.get("signal") == "positive")
+        negative_rlhf = sum(1 for r in rlhf_entries if r.get("signal") == "negative")
+        
+        # Calculate queries - this is expensive in Redis to fully sum without a counter 
+        # but for simplicity we iterate over top 100 sessions
+        session_ids = self._r.zrevrange(f"{KEY_PREFIX}sessions", 0, 99)
+        total_queries = 0
+        for sid in session_ids:
+            total_queries += self._r.llen(self._hkey(sid))
+
+        # Node avg latency (similar to sqlite approach, get recent traces)
+        traces = self.get_pipeline_traces(session_id=None, limit=200)
+        latencies = []
+        from collections import defaultdict
+        node_latencies = defaultdict(list)
+        
+        for trace in traces:
+            total_ms = 0
+            for ev in trace.get("events", []):
+                if "latency_ms" in ev:
+                    lat = ev["latency_ms"]
+                    total_ms += lat
+                    node_latencies[ev.get("node", "unknown")].append(lat)
+            if total_ms > 0:
+                latencies.append(total_ms)
+                
+        avg_latency = (sum(latencies) / len(latencies)) if latencies else 0.0
+        node_avg = {node: round(sum(vals) / len(vals), 1) for node, vals in node_latencies.items() if vals}
+
+        return {
+            "total_sessions": total_sessions,
+            "total_queries": total_queries,
+            "total_errors": total_errors,
+            "error_rate": round(total_errors / max(total_queries, 1) * 100, 1),
+            "positive_rlhf": positive_rlhf,
+            "negative_rlhf": negative_rlhf,
+            "avg_latency_ms": round(avg_latency, 1),
+            "node_avg_latency": node_avg,
+        }
 
     # ─────────────────────────────────────────
     # Config (KV Store)

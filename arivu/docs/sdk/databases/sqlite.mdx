@@ -1,0 +1,23 @@
+---
+title: "SQLite SDK"
+description: "Rapidly spin up Arivu with an embedded local SQLite engine."
+---
+
+## SDK Configuration
+
+Integrating SQLite within your Python application is seamless. Utilize the `Arivu.connect()` static factory.
+
+<CodeGroup>
+```python python
+from arivu import Arivu
+
+db = Arivu.connect(
+    dialect="sqlite",
+    dbname="local_prototype.db"
+)
+```
+</CodeGroup>
+
+<Info>
+  Setting `mode="user"` prevents Arivu from executing destructive SQL operations (like `DROP` or `UPDATE`). They will instead be held in an approval queue.
+</Info>

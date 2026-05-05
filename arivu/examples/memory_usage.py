@@ -9,7 +9,7 @@ import time
 
 # ── 1. Default: SQLite backend (zero config) ──────────────────────────────────
 
-from ARIVU.memory import (
+from arivu.memory import (
     load_session_history,
     save_interaction,
     save_rlhf_signal,
@@ -68,7 +68,7 @@ for entry in log:
 
 # ── 3. Admin approval flow ────────────────────────────────────────────────────
 
-from ARIVU.memory import save_pending_approval
+from arivu.memory import save_pending_approval
 
 save_pending_approval(
     session_id="sess-admin-003",
@@ -94,7 +94,7 @@ os.environ["ARIVU_MEMORY_BACKEND"] = "redis"
 os.environ["ARIVU_REDIS_URL"] = "redis://localhost:6379/0"
 
 # Re-initialise backend (normally set before first import)
-from ARIVU.memory import store as memory_store
+from arivu.memory import store as memory_store
 memory_store._backend = None  # reset singleton for demo purposes
 
 save_interaction(

@@ -1,0 +1,83 @@
+---
+title: Databricks
+description: Connect Arivu to Databricks Unity Catalog and query your lakehouse in plain English.
+---
+
+## Overview
+
+Arivu supports **Databricks Unity Catalog** as a first-class dialect. Connect to your Databricks SQL warehouse and query it using natural language — Arivu generates Spark/Databricks-compatible SQL automatically.
+
+## Installation
+
+Install the Databricks driver alongside Arivu:
+
+```bash
+pip install arivu-ai[databricks]
+```
+
+This installs `databricks-sqlalchemy`, the official SQLAlchemy dialect for Databricks.
+
+## Quick Start
+
+```python
+from arivu import Arivu
+
+db = Arivu.connect(
+    dialect="databricks",
+    host="adb-123456789.azuredatabricks.net",
+    http_path="/sql/1.0/endpoints/abc123def456",
+    access_token="dapi_your_token_here",
+    catalog="main",             # optional, defaults to "main"
+    schema_name="default",      # optional, defaults to "default"
+    mode="user",
+)
+
+result = db.query("Show me the daily active users trend for the last 30 days")
+print(result)
+```
+
+## Parameters
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `dialect` | Yes | Must be `"databricks"` |
+| `host` | Yes | Databricks workspace host (e.g. `adb-123.azuredatabricks.net`) |
+| `http_path` | Yes | SQL warehouse HTTP path (e.g. `/sql/1.0/endpoints/abc123`) |
+| `access_token` | Yes | Personal access token (`dapi...`) |
+| `catalog` | No | Unity Catalog name (default: `main`) |
+| `schema_name` | No | Schema within the catalog (default: `default`) |
+| `mode` | No | `"user"` (read-only) or `"admin"` (full access) |
+
+## Dashboard
+
+The Arivu dashboard fully supports Databricks connections:
+
+- **Databricks logo** next to the connection alias
+- A **Cloud** badge indicating it's a cloud warehouse
+- Dynamic form fields for Host, HTTP Path, Access Token, Catalog, and Schema
+
+All trace events and errors include the Databricks dialect in their metadata.
+
+## MCP Server
+
+Use the MCP server with Databricks:
+
+```bash
+export ARIVU_DB_DIALECT=databricks
+export ARIVU_DB_HOST=adb-123.azuredatabricks.net
+export ARIVU_DATABRICKS_HTTP_PATH=/sql/1.0/endpoints/abc123
+export ARIVU_DATABRICKS_TOKEN=dapi_your_token
+export ARIVU_DATABRICKS_CATALOG=main
+
+python -m arivu.mcp
+```
+
+## Notes
+
+<Note>
+Databricks connections have higher latency than traditional RDBMS. Arivu adjusts socket timeouts automatically.
+</Note>
+
+<Warning>
+Foreign key and index introspection are not supported by the Databricks SQLAlchemy dialect. Arivu handles this gracefully — schema extraction will succeed with column-level metadata only.
+</Warning>

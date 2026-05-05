@@ -3,7 +3,7 @@ arivu.llm
 ────────────────
 Multi-provider LLM abstraction layer.
 
-    from ARIVU.llm import get_llm, list_providers
+    from arivu.llm import get_llm, list_providers
 
     llm = get_llm()
     response = llm.invoke("SELECT ...")

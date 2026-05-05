@@ -1,0 +1,27 @@
+---
+title: "Groq SDK"
+description: "Initialize the Arivu pipeline using Groq as the routing engine."
+---
+
+## Integration
+
+You can assign Groq as your generation engine either by passing kwargs into the connection object or through environment variables.
+
+<CodeGroup>
+```python python
+import os
+from arivu import Arivu
+
+os.environ["GROQ_API_KEY"] = "..."
+
+db = Arivu.connect(
+    # DB arguments...
+    llm_provider="groq",
+    model="llama3-70b-8192"
+)
+```
+</CodeGroup>
+
+<Note>
+  Ensure your `arivu-ai[llm]` optional dependencies are installed via `pip install arivu-ai[groq]` if necessary.
+</Note>

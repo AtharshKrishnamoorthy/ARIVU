@@ -3,20 +3,38 @@ arivu.connection.core
 ────────────────────────────
 The single entry point for all DB interactions.
 
-Usage:
+Usage (traditional RDBMS):
     db = Arivu.connect(
         host="localhost",
         port=5432,
         user="atharsh",
         password="secret",
         dbname="ecommerce",
-        mode="user",          # "user" | "admin"
-        ttl=3600,             # schema cache TTL in seconds (default 1h)
-        dialect="postgresql", # "postgresql" | "mysql" | "sqlite"
+        mode="user",
+        dialect="postgresql",
+    )
+
+Usage (Snowflake):
+    db = Arivu.connect(
+        dialect="snowflake",
+        account="xy12345.us-east-1",
+        user="atharsh",
+        password="secret",
+        dbname="analytics",
+        warehouse="COMPUTE_WH",
+    )
+
+Usage (Databricks):
+    db = Arivu.connect(
+        dialect="databricks",
+        host="adb-123.azuredatabricks.net",
+        http_path="/sql/1.0/endpoints/abc123",
+        access_token="dapi...",
+        catalog="main",
     )
 
     result = db.query("show me top 10 orders last month")
-    db.refresh_schema()  # on-demand schema refresh
+    db.refresh_schema()
     db.close()
 """
 
@@ -30,13 +48,14 @@ from typing import Optional
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
-from .auth import authenticate, validate_mode
+from .auth import authenticate, validate_mode, get_dialect
 from .schema import extract_schema, serialize_to_sql_ctx
 from .cache import SchemaCache
 from .exceptions import (
     AuthError,
     ConnectionError as DHConnectionError,
     SchemaExtractionError,
+    DialectNotInstalledError,
 )
 
 logger = logging.getLogger("arivu.connection")
@@ -56,12 +75,14 @@ class Arivu:
         session_id: str,
         schema_cache: SchemaCache,
         dialect: str,
+        connection_display: str = "",
     ) -> None:
         self._engine = engine
         self._mode = mode
         self._session_id = session_id
         self._schema_cache = schema_cache
         self._dialect = dialect
+        self._connection_display = connection_display
         self._closed = False
 
     # ─────────────────────────────────────────
@@ -71,39 +92,85 @@ class Arivu:
     @classmethod
     def connect(
         cls,
-        host: str,
-        user: str,
-        password: str,
-        dbname: str,
+        dialect: str = "postgresql",
+        # ── Traditional RDBMS params ──
+        host: str = None,
         port: int = 5432,
+        user: str = None,
+        password: str = None,
+        dbname: str = None,
+        # ── Snowflake-specific ──
+        account: str = None,
+        warehouse: str = None,
+        role: str = None,
+        schema_name: str = None,
+        # ── Databricks-specific ──
+        http_path: str = None,
+        access_token: str = None,
+        catalog: str = None,
+        # ── Common options ──
         mode: str = "user",
         ttl: int = 3600,
-        dialect: str = "postgresql",
         schema_on_connect: bool = True,
+        **extra_kwargs,
     ) -> "Arivu":
         """
         Authenticate, verify mode, extract schema, and return a ready connection.
 
+        Supports all registered dialects. Cloud warehouse params (account,
+        warehouse, http_path, etc.) are forwarded to the dialect descriptor.
+
         Raises:
-            AuthError              — bad credentials or unreachable host
-            ConnectionError        — TCP / network failure
-            SchemaExtractionError  — introspection failed after auth
-            ValueError             — invalid mode
+            AuthError                — bad credentials or unreachable host
+            ConnectionError          — TCP / network failure
+            SchemaExtractionError    — introspection failed after auth
+            DialectNotInstalledError — missing driver package
+            ValueError               — invalid mode
         """
         validate_mode(mode)
 
-        print(f"\n◀  Arivu.connect()  {dialect}://{host}:{port}/{dbname}  mode={mode}", flush=True)
-        logger.info(f"Connecting to {dialect}://{host}:{port}/{dbname} as mode={mode}")
+        # Resolve the dialect descriptor (validates it exists)
+        desc = get_dialect(dialect)
+
+        # Build the kwargs dict to pass to authenticate()
+        connect_kwargs = {"dialect": dialect}
+
+        if dialect in ("postgresql", "mysql"):
+            connect_kwargs.update(
+                host=host, port=port, user=user,
+                password=password, dbname=dbname,
+            )
+            display = f"{dialect}://{host}:{port}/{dbname}"
+        elif dialect == "sqlite":
+            connect_kwargs.update(dbname=dbname)
+            display = f"sqlite:///{dbname}"
+        elif dialect == "snowflake":
+            connect_kwargs.update(
+                account=account, user=user, password=password,
+                dbname=dbname, warehouse=warehouse, role=role,
+                schema_name=schema_name,
+            )
+            display = f"snowflake://{account}/{dbname}"
+        elif dialect == "databricks":
+            connect_kwargs.update(
+                host=host, http_path=http_path,
+                access_token=access_token, catalog=catalog,
+                schema_name=schema_name,
+            )
+            display = f"databricks://{host}"
+        else:
+            # Future dialects — pass everything through
+            connect_kwargs.update(
+                host=host, port=port, user=user, password=password,
+                dbname=dbname, **extra_kwargs,
+            )
+            display = f"{dialect}://{host}:{port}/{dbname}"
+
+        print(f"\n◀  Arivu.connect()  {display}  mode={mode}", flush=True)
+        logger.info(f"Connecting to {display} as mode={mode}")
 
         # ── Step 1: auth + build engine ──────────────
-        engine = authenticate(
-            host=host,
-            port=port,
-            user=user,
-            password=password,
-            dbname=dbname,
-            dialect=dialect,
-        )
+        engine = authenticate(**connect_kwargs)
 
         # ── Step 2: session identity ──────────────────
         session_id = str(uuid.uuid4())
@@ -120,6 +187,7 @@ class Arivu:
             session_id=session_id,
             schema_cache=schema_cache,
             dialect=dialect,
+            connection_display=display,
         )
 
         logger.info(
@@ -158,6 +226,12 @@ class Arivu:
             "session_id": self._session_id,
             "mode": self._mode,
             "engine": self._engine,
+            "dialect": self._dialect,
+            "connection_meta": {
+                "dialect": self._dialect,
+                "display": self._connection_display,
+                "mode": self._mode,
+            },
         }
 
     def refresh_schema(self) -> None:
@@ -210,6 +284,7 @@ class Arivu:
     def __repr__(self) -> str:
         return (
             f"<Arivu session={self._session_id[:8]}  "
+            f"dialect={self._dialect}  "
             f"mode={self._mode}  "
             f"schema={'fresh' if self._schema_cache.is_valid() else 'stale/empty'}>"
         )

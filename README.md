@@ -82,12 +82,12 @@ print("Generated SQL:", results.get("sql"))
 Arivu allows you to expose your database to authorized users via chat platforms:
 
 ```python
-from arivu.integrations.telegram import TelegramAdapter
+from arivu.integrations import TelegramIntegration
 
 # Pass your existing 'app' engine to the adapter
-bot = TelegramAdapter(
-    bot_token="YOUR_TELEGRAM_BOT_TOKEN",
-    arivu_app=app 
+bot = TelegramIntegration(
+  db=app,
+  token="YOUR_TELEGRAM_BOT_TOKEN",
 )
 
 # Start listening for messages!

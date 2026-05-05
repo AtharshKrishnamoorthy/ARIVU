@@ -42,6 +42,9 @@ class GraphState:
     session_id: str = ""
     mode: str = "user"                # "user" | "admin"
     engine: Any = None                # SQLAlchemy engine
+    dialect: str = ""                 # "postgresql" | "mysql" | "sqlite" | "snowflake" | "databricks"
+    connection_meta: dict = field(default_factory=dict)  # {dialect, host, port, dbname, ...}
+    interface: str = "dashboard"      # Originating platform (e.g., "dashboard", "slack")
 
     # ── SQL generation ───────────────────────────────────────────────────
     sql: str = ""

@@ -1,0 +1,66 @@
+---
+title: "Session Management"
+description: "How to properly manage threads, fetch history, and clear user context."
+---
+
+Arivu's Memory backends store a serialized graph state of the Text-to-SQL logic against a `session_id`.
+
+When engaging with the pipeline, simply passing a `session_id` into the `invoke` function will automatically fetch, utilize, and update the associated conversational thread.
+
+<Tip>Every conversation with Arivu is automatically linked to a `session_id`. All state is managed transparently by the memory system.</Tip>
+
+## Managing Sessions
+
+You can directly interact with the Memory Store API to fetch history, manage sessions, or build custom dashboard views.
+
+<Tabs>
+  <Tab title="SQLite Backend">
+    ```python
+    from arivu.memory import SQLiteBackend
+
+    store = SQLiteBackend(db_path="arivu_memory.db")
+
+    # Fetch entire historical state for a session
+    history = store.get_session("user_session_123")
+    print(history)
+
+    # Clear/Delete a session (e.g., on user logout or /reset)
+    store.clear_session("user_session_123")
+    ```
+  </Tab>
+  <Tab title="Redis Backend">
+    ```python
+    from arivu.memory import RedisBackend
+
+    store = RedisBackend(redis_url="redis://localhost:6379/0")
+
+    # Fetch session history
+    history = store.get_session("user_session_123")
+
+    # Clear session
+    store.clear_session("user_session_123")
+
+    # List all sessions
+    all_sessions = store.list_sessions()
+    ```
+  </Tab>
+</Tabs>
+
+## Context Window Management
+
+<Info>LLMs have finite context windows. Arivu automatically handles this by intelligently pruning older, less-relevant messages when the state grows too large.</Info>
+
+<AccordionGroup>
+  <Accordion title="How Context Truncation Works" defaultOpen>
+    - **Automatic pruning** - Oldest messages are removed first
+    - **Intelligent selection** - Preserves semantically important interactions
+    - **Recent emphasis** - Always keeps the latest 5-10 messages
+    - **No data loss** - Full history still available in database
+  </Accordion>
+  <Accordion title="Best Practices">
+    - Use short session IDs for efficiency
+    - Periodically archive completed sessions
+    - Monitor memory usage for long-running sessions
+    - Clear old sessions regularly to maintain performance
+  </Accordion>
+</AccordionGroup>

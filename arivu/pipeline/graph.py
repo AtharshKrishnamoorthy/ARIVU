@@ -7,7 +7,7 @@ The compiled graph is a singleton — built once at import time and
 reused across all pipeline.run() calls. Thread-safe by LangGraph's design.
 
 Usage (internal — called by pipeline.run()):
-    from ARIVU.pipeline.graph import get_compiled_graph
+    from arivu.pipeline.graph import get_compiled_graph
 
     graph = get_compiled_graph()
     final_state = graph.invoke(initial_state)

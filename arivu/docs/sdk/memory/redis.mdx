@@ -1,0 +1,23 @@
+---
+title: "Redis Backend"
+description: "Distributed, high-throughput memory storage for Arivu."
+---
+
+## Setup
+
+Arivu uses this store to maintain isolated conversational context per `session_id`, log trace events, and persist pending SQL operations awaiting approval.
+
+### Configuration
+
+Toggle the memory architecture globally before spinning up instances:
+
+<CodeGroup>
+```bash .env
+ARIVU_MEMORY_BACKEND=redis
+REDIS_URL=redis://localhost:6379/0
+```
+</CodeGroup>
+
+<Info>
+  All nodes in the LangGraph pipeline utilize `arivu.memory.store` singleton methods directly to query session states.
+</Info>

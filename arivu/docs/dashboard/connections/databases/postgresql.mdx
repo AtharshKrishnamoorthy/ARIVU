@@ -1,0 +1,42 @@
+---
+title: "PostgreSQL"
+description: "Connect your advanced object-relational databases."
+---
+
+import { Callout, Steps, CardGroup, Card } from "mintlify/components";
+
+<img src="/images/postgres.png" alt="PostgreSQL Integration" />
+
+## Overview
+
+PostgreSQL is a powerful, open-source object-relational database system with over 35 years of active development that has earned it a strong reputation for reliability, feature robustness, and performance. 
+
+<CardGroup cols={2}>
+  <Card title="Advanced Data Types" icon="layer-group">
+    Support for JSONB, arrays, and custom types out of the box.
+  </Card>
+  <Card title="ACID Compliant" icon="shield-halved">
+    Strict transactional integrity and concurrency control.
+  </Card>
+</CardGroup>
+
+## Configuration
+
+<Steps>
+  <Step title="Prerequisites">
+    Generate your PostgreSQL connection URI. You will need your host, port, database name, user, and password.
+  </Step>
+  <Step title="Configure">
+    Update your Arivu integration configuration:
+    <CodeGroup>
+    ```bash .env
+    POSTGRES_URI="postgresql://username:password@localhost:5432/my_database"
+    ```
+    </CodeGroup>
+  </Step>
+  <Step title="Test Connection">
+    Click the **Test Connection** button in the dashboard. If the indicator turns green, your database is securely linked.
+  </Step>
+</Steps>
+
+<Warning>For production deployments, carefully restrict connection pooling variables (like `max_connections`) to avoid database locking.</Warning>

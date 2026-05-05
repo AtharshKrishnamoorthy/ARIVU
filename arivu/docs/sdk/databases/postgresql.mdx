@@ -1,0 +1,28 @@
+---
+title: "PostgreSQL SDK"
+description: "Connect the Arivu SDK to PostgreSQL via Python."
+---
+
+## SDK Configuration
+
+Integrating PostgreSQL within your Python application is seamless. Utilize the `Arivu.connect()` static factory.
+
+<CodeGroup>
+```python python
+from arivu import Arivu
+
+db = Arivu.connect(
+    dialect="postgresql",
+    host="db.example.com",
+    port=5432,
+    user="postgres",
+    password="secret",
+    dbname="analytics_prod",
+    mode="user" # or 'admin'
+)
+```
+</CodeGroup>
+
+<Info>
+  Setting `mode="user"` prevents Arivu from executing destructive SQL operations (like `DROP` or `UPDATE`). They will instead be held in an approval queue.
+</Info>

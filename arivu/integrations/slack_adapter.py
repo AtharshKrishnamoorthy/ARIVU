@@ -50,7 +50,7 @@ logger = logging.getLogger("arivu.integrations.slack")
 
 class SlackIntegration(BaseIntegration):
     """
-    Slack adapter for ARIVU.
+    Slack adapter for arivu.
 
     Supports Socket Mode (zero infra, recommended for dev + internal tools)
     and HTTP mode (for production deployments with a public URL).

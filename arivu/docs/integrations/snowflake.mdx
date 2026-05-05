@@ -1,0 +1,88 @@
+---
+title: Snowflake
+description: Connect Arivu to your Snowflake data warehouse and query it in plain English.
+---
+
+## Overview
+
+Arivu supports **Snowflake** as a first-class dialect. Connect to your Snowflake data warehouse and query it using natural language — the pipeline handles SQL generation, execution, and response formatting automatically.
+
+## Installation
+
+Install the Snowflake driver alongside Arivu:
+
+```bash
+pip install arivu-ai[snowflake]
+```
+
+This installs `snowflake-sqlalchemy`, the official SQLAlchemy dialect for Snowflake.
+
+## Quick Start
+
+```python
+from arivu import Arivu
+
+db = Arivu.connect(
+    dialect="snowflake",
+    account="xy12345.us-east-1",
+    user="your_user",
+    password="your_password",
+    dbname="ANALYTICS",
+    warehouse="COMPUTE_WH",
+    role="SYSADMIN",            # optional
+    schema_name="PUBLIC",       # optional
+    mode="user",
+)
+
+result = db.query("What were the top 10 products by revenue last quarter?")
+print(result)
+```
+
+## Parameters
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `dialect` | Yes | Must be `"snowflake"` |
+| `account` | Yes | Your Snowflake account identifier (e.g. `xy12345.us-east-1`) |
+| `user` | Yes | Snowflake username |
+| `password` | Yes | Snowflake password |
+| `dbname` | Yes | Database name |
+| `warehouse` | No | Compute warehouse (e.g. `COMPUTE_WH`) |
+| `role` | No | Snowflake role (e.g. `SYSADMIN`) |
+| `schema_name` | No | Schema (defaults to `PUBLIC`) |
+| `mode` | No | `"user"` (read-only) or `"admin"` (full access) |
+
+## Dashboard
+
+The Arivu dashboard fully supports Snowflake connections. When you configure a Snowflake connection in the **Connections** panel, you'll see:
+
+- **Snowflake logo** next to the connection alias
+- A **Cloud** badge indicating it's a cloud warehouse
+- Dynamic form fields for Account, Warehouse, Role, and Schema
+
+All trace events, errors, and session history will include the Snowflake dialect metadata.
+
+## MCP Server
+
+Use the MCP server with Snowflake by setting the appropriate environment variables:
+
+```bash
+export ARIVU_DB_DIALECT=snowflake
+export ARIVU_SNOWFLAKE_ACCOUNT=xy12345.us-east-1
+export ARIVU_SNOWFLAKE_WAREHOUSE=COMPUTE_WH
+export ARIVU_DB_USER=your_user
+export ARIVU_DB_PASSWORD=your_password
+export ARIVU_DB_NAME=ANALYTICS
+
+python -m arivu.mcp
+```
+
+## Notes
+
+<Note>
+Snowflake connections use `SELECT CURRENT_VERSION()` as the probe query to verify connectivity.
+</Note>
+
+<Warning>
+Foreign key and index introspection may not be fully supported by the Snowflake SQLAlchemy dialect. Arivu gracefully handles this — schema extraction will succeed, but FK/index metadata may be empty.
+</Warning>

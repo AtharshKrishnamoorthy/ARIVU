@@ -1,0 +1,27 @@
+---
+title: "Openai SDK"
+description: "Initialize the Arivu pipeline using Openai as the routing engine."
+---
+
+## Integration
+
+You can assign Openai as your generation engine either by passing kwargs into the connection object or through environment variables.
+
+<CodeGroup>
+```python python
+import os
+from arivu import Arivu
+
+os.environ["OPENAI_API_KEY"] = "..."
+
+db = Arivu.connect(
+    # DB arguments...
+    llm_provider="openai",
+    model="gpt-4o"
+)
+```
+</CodeGroup>
+
+<Note>
+  Ensure your `arivu-ai[llm]` optional dependencies are installed via `pip install arivu-ai[openai]` if necessary.
+</Note>

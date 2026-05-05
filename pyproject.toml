@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=61.0,<68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "arivu-ai"
-version = "0.1.0"
+version = "0.2.1"
 description = "The open-source framework for autonomous database agents."
 readme = "README.md"
 authors = [
@@ -13,7 +13,6 @@ authors = [
 license = {text = "MIT"}
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
 dependencies = [
@@ -42,12 +41,20 @@ dependencies = [
 ]
 requires-python = ">=3.10"
 
+[project.optional-dependencies]
+snowflake = ["snowflake-sqlalchemy"]
+databricks = ["databricks-sqlalchemy"]
+mcp = ["mcp[cli]"]
+all = ["snowflake-sqlalchemy", "databricks-sqlalchemy", "mcp[cli]"]
+
+[project.scripts]
+arivu-mcp = "arivu.mcp.server:main"
+
 [project.urls]
-"Homepage" = "https://github.com/arivu-io/arivu"
+"Homepage" = "https://github.com/AtharshKrishnamoorthy/ARIVU"
 "Documentation" = "https://arivu.mintlify.app/"
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["arivu*"]
 exclude = ["arivu.dashboard*", "arivu.docs*", "arivu.examples*"]
-

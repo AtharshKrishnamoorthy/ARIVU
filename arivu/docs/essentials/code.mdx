@@ -1,7 +1,6 @@
 ---
 title: 'Code blocks'
 description: 'Display inline code and code blocks'
-icon: 'code'
 ---
 
 ## Inline code

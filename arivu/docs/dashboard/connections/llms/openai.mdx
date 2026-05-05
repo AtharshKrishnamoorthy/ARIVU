@@ -1,0 +1,59 @@
+---
+title: "OpenAI"
+description: "Connect directly to OpenAI's powerful GPT suite."
+---
+
+import { Callout, Steps, CardGroup, Card, Frame } from "mintlify/components";
+
+<Frame>
+  <img src="/images/openai.png" alt="OpenAI Integration" className="rounded-xl" />
+</Frame>
+
+## Overview
+
+OpenAI maintains some of the most robust and widely used frontier models in the world. Models like GPT-4o offer an immense breadth of knowledge, deep coding support, and multimodal capabilities.
+
+<CardGroup cols={2}>
+  <Card title="Industry Standard" icon="certificate">
+    The most adopted AI endpoint standard globally.
+  </Card>
+  <Card title="Ecosystem" icon="globe">
+    Extensive support for specialized tasks like json-mode and tool calling.
+  </Card>
+</CardGroup>
+
+## Configuration
+
+<Steps>
+  <Step title="Gather Credentials">
+    Acquire your API key from the [OpenAI Developer Platform](https://platform.openai.com/api-keys).
+  </Step>
+  <Step title="Set Variables">
+    Update your Arivu system's environment properties:
+    <CodeGroup>
+    ```bash .env
+    OPENAI_API_KEY="sk-..."
+    DEFAULT_MODEL="gpt-4o"
+    ```
+    </CodeGroup>
+  </Step>
+  <Step title="Azure OpenAI (Optional)">
+    If you are using Azure, you will also need to specify the endpoint/version:
+    <CodeGroup>
+    ```bash .env
+    AZURE_OPENAI_ENDPOINT="https://instance.openai.azure.com/"
+    AZURE_OPENAI_API_KEY="..."
+    OPENAI_API_VERSION="2024-02-01"
+    ```
+    </CodeGroup>
+  </Step>
+</Steps>
+
+<Tabs>
+  <Tab title="System Configured">
+    System tools are supported seamlessly using native function calling capabilities in GPT-4 and GPT-4o.
+  </Tab>
+  <Tab title="Legacy Models">
+    Legacy reasoning models (like `gpt-3.5-turbo`) are supported but may experience lower adherence to complex JSON instructions.
+  </Tab>
+</Tabs>

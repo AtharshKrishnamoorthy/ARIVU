@@ -1,0 +1,83 @@
+---
+title: "WhatsApp Integration"
+description: "Connect Arivu to WhatsApp through Twilio webhooks with text, voice, image, approvals, and feedback keywords."
+---
+
+import { Callout, Steps, CardGroup, Card } from "mintlify/components";
+
+## What the backend needs
+
+The WhatsApp adapter in `integrations/whatsapp_adapter.py` runs as a FastAPI webhook server backed by Twilio.
+
+Required values:
+
+- `TWILIO_ACCOUNT_SID` or `account_sid`
+- `TWILIO_AUTH_TOKEN` or `auth_token`
+- `TWILIO_WHATSAPP_FROM` or `from_number`
+- Optional `admin_numbers` for approval control
+- A public webhook URL if you are using Twilio outside local development
+
+## What WhatsApp users can do
+
+<CardGroup cols={2}>
+    <Card title="Text Queries" icon="message-circle">
+        Send a message and Arivu will run the query pipeline.
+    </Card>
+    <Card title="Voice Messages" icon="mic">
+        Send a voice note and Arivu will transcribe it before querying.
+    </Card>
+    <Card title="Image Messages" icon="image">
+        Send an image or screenshot and Arivu will OCR the text.
+    </Card>
+    <Card title="Keyword Actions" icon="shield-check">
+        Reply with APPROVE, REJECT, GOOD, or BAD for approvals and feedback.
+    </Card>
+</CardGroup>
+
+## Setup steps
+
+<Steps>
+    <Step title="Create a Twilio account">
+        Enable the WhatsApp sandbox or connect a production WhatsApp sender in Twilio.
+    </Step>
+    <Step title="Configure credentials">
+        Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and your WhatsApp sender number.
+    </Step>
+    <Step title="Expose a webhook endpoint">
+        Point Twilio to `POST /webhook` on the FastAPI server started by Arivu.
+    </Step>
+    <Step title="Add admin numbers">
+        Pass E.164 phone numbers in `admin_numbers` so approval messages go to the right people.
+    </Step>
+    <Step title="Start the server">
+        Call `adapter.start(host="0.0.0.0", port=8080)` or mount the FastAPI app behind your own server.
+    </Step>
+</Steps>
+
+## Example
+
+```python
+from arivu.integrations.whatsapp_adapter import WhatsAppIntegration
+
+adapter = WhatsAppIntegration(
+        db=db,
+        account_sid="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        auth_token="your-twilio-auth-token",
+        from_number="whatsapp:+14155238886",
+        admin_numbers=["+919876543210"],
+)
+
+adapter.start(host="0.0.0.0", port=8080)
+```
+
+## Backend behavior
+
+- Session IDs are mapped as `whatsapp:{E164_number}`.
+- APPROVE / REJECT replies resolve pending SQL approvals.
+- GOOD / BAD replies store RLHF feedback.
+- Voice and image attachments are optional extensions; if dependencies are missing, install the extra packages from the adapter docstring.
+- Twilio signature validation is enabled by default and can be skipped locally with `TWILIO_SKIP_VALIDATION=1`.
+
+<Callout type="warning">
+    WhatsApp is webhook-based. You need a reachable URL for Twilio to call in production.
+</Callout>

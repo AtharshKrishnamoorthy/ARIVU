@@ -1,0 +1,27 @@
+---
+title: "MySQL & MariaDB SDK"
+description: "Initialize Arivu with MySQL configurations."
+---
+
+## SDK Configuration
+
+Integrating MySQL & MariaDB within your Python application is seamless. Utilize the `Arivu.connect()` static factory.
+
+<CodeGroup>
+```python python
+from arivu import Arivu
+
+db = Arivu.connect(
+    dialect="mysql",
+    host="127.0.0.1",
+    port=3306,
+    user="root",
+    password="password",
+    dbname="customer_data"
+)
+```
+</CodeGroup>
+
+<Info>
+  Setting `mode="user"` prevents Arivu from executing destructive SQL operations (like `DROP` or `UPDATE`). They will instead be held in an approval queue.
+</Info>

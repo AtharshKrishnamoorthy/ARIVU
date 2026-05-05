@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -142,7 +143,7 @@ export function LLMView() {
               className="h-8 text-xs" 
               placeholder={providers[config.provider] || "e.g. gpt-4o"}
             />
-            <p className="text-[10px] text-muted-foreground">Leave blank to use the provider's default model.</p>
+            <p className="text-[10px] text-muted-foreground">Leave blank to use the provider&apos;s default model.</p>
           </div>
 
           <div className="space-y-1.5">

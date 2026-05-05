@@ -1,0 +1,40 @@
+---
+title: "Ollama"
+description: "Run local large language models securely with Ollama."
+---
+
+<Frame>
+  <img src="/images/ollama.png" alt="Ollama" />
+</Frame>
+
+## Overview
+
+Ollama is an open-source tool that allows you to run large language models locally. It is the premier choice for organizations that need strict data privacy or completely offline AI capabilities.
+
+<CardGroup cols={2}>
+  <Card title="Privacy First" icon="shield-halved">
+    Your data never leaves your environment.
+  </Card>
+  <Card title="Ease of Use" icon="play">
+    Execute models with a simple `ollama run <model>` command.
+  </Card>
+</CardGroup>
+
+## Configuration
+
+<Steps>
+  <Step title="Install Ollama">
+    Download and install the runner from [Ollama's website](https://ollama.com/), and pull a model (e.g., `ollama pull llama3`).
+  </Step>
+  <Step title="Configure Default URL">
+    Ollama defaults to running its API engine on localhost port 11434:
+    <CodeGroup>
+    ```bash .env
+    OLLAMA_BASE_URL="http://localhost:11434"
+    DEFAULT_MODEL="llama3"
+    ```
+    </CodeGroup>
+  </Step>
+</Steps>
+
+<Warning>If Arivu is running inside a Docker container, your host might need to be referenced via `http://host.docker.internal:11434` instead of `localhost`.</Warning>

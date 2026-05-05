@@ -1,0 +1,27 @@
+---
+title: "Snowflake SDK"
+description: "Tap into massive cloud warehouse capacity using Arivu."
+---
+
+## SDK Configuration
+
+Integrating Snowflake within your Python application is seamless. Utilize the `Arivu.connect()` static factory.
+
+<CodeGroup>
+```python python
+from arivu import Arivu
+
+db = Arivu.connect(
+    dialect="snowflake",
+    account="xy12345.us-east-1",
+    warehouse="ANALYTICS_WH",
+    user="data_eng",
+    password="secure",
+    dbname="PROD_DATA"
+)
+```
+</CodeGroup>
+
+<Info>
+  Setting `mode="user"` prevents Arivu from executing destructive SQL operations (like `DROP` or `UPDATE`). They will instead be held in an approval queue.
+</Info>

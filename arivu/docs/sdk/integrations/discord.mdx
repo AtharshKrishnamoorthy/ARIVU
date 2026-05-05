@@ -1,0 +1,82 @@
+---
+title: "Discord Integration"
+description: "Connect Arivu to Discord with slash commands, prefix queries, DMs, approvals, and feedback buttons."
+---
+
+import { Callout, Steps, CardGroup, Card } from "mintlify/components";
+
+## What the backend needs
+
+The Discord adapter in `integrations/discord_adapter.py` uses `discord.py` and supports both slash commands and message-based queries.
+
+Required values:
+
+- `DISCORD_BOT_TOKEN` or `token`
+- Optional `DISCORD_GUILD_ID` for faster slash command sync
+- Optional `admin_user_ids` for approval gating
+- Enable the **Message Content Intent** in the Discord developer portal
+
+## What Discord users can do
+
+<CardGroup cols={2}>
+  <Card title="Slash Commands" icon="terminal">
+    Use `/query` to ask a question and `/refresh` to refresh schema.
+  </Card>
+  <Card title="DM Queries" icon="message-circle">
+    Send a direct message to the bot and get a response back in DM.
+  </Card>
+  <Card title="Prefix Queries" icon="hash">
+    In a server, use the `!dh ` prefix for text queries when you do not want slash commands.
+  </Card>
+  <Card title="Approvals and RLHF" icon="shield-check">
+    Approve / Reject destructive SQL and capture 👍 / 👎 feedback with buttons.
+  </Card>
+</CardGroup>
+
+## Setup steps
+
+<Steps>
+  <Step title="Create a Discord application">
+    Create a bot in the [Discord Developer Portal](https://discord.com/developers/applications).
+  </Step>
+  <Step title="Enable intents and permissions">
+    Turn on Message Content Intent and grant bot permissions to send messages, read messages, use slash commands, add reactions, and read message history.
+  </Step>
+  <Step title="Invite the bot">
+    Add the bot to your server using the OAuth2 invite URL.
+  </Step>
+  <Step title="Set environment variables">
+    Set `DISCORD_BOT_TOKEN` and optionally `DISCORD_GUILD_ID` for quicker slash command syncing.
+  </Step>
+  <Step title="Add admins">
+    Pass Discord user IDs in `admin_user_ids` so approval prompts only go to trusted users.
+  </Step>
+</Steps>
+
+## Example
+
+```python
+from arivu.integrations.discord_adapter import DiscordIntegration
+
+adapter = DiscordIntegration(
+    db=db,
+    token="your-discord-bot-token",
+    guild_id=123456789012345678,
+    admin_user_ids=[123456789012345678],
+)
+
+adapter.start()
+```
+
+## Backend behavior
+
+- Session IDs are mapped as `discord:{user_id}`.
+- Slash command `/query` runs a natural language query.
+- Slash command `/refresh` refreshes the schema cache.
+- DM messages and `!dh ` prefix messages route through the same pipeline.
+- Approval messages are delivered as Discord UI buttons.
+- RLHF is stored via the 👍 / 👎 buttons on response messages.
+
+<Callout type="info">
+  Discord is a good fit when you want both server chat and DM support with a richer button-based experience.
+</Callout>

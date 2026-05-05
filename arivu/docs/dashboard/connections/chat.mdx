@@ -1,0 +1,44 @@
+---
+title: "Chat Interface"
+description: "The core analytical workspace for natural language queries"
+---
+
+<Frame>
+  <img src="/images/arivu-chat-dash.png" alt="Chat Interface" className="rounded-xl" />
+</Frame>
+
+The Chat interface is the heart of the Arivu Dashboard. It transforms natural language into verified SQL, executes it against your connected database, and returns rich, interactive results.
+
+## Response Modes
+
+Every assistant response supports three distinct views, organized in a tabbed card:
+
+<Tabs>
+  <Tab title="Response">
+    The LLM's natural language summary of the data, rendered in Markdown. Includes reasoning and contextual explanations.
+    <img src="/images/chat-res.png" alt="Chat Dark Mode" className="hidden dark:block rounded-xl" />
+  </Tab>
+  <Tab title="Visualize">
+    Interactive, theme-aware charts generated using **Thesys C1 Generative UI**. This tab triggers the visualization API only when you switch to it, saving cost.
+    <img src="/images/chat-chart.png" alt="Chat Dark Mode" className="hidden dark:block rounded-xl" />
+  </Tab>
+  <Tab title="Data Table">
+    A scrollable table showing the raw SQL result rows. Includes a one-click **Export CSV** button for instant file downloads.
+    <img src="/images/chat-table.png" alt="Chat Dark Mode" className="hidden dark:block rounded-xl" />
+  </Tab>
+</Tabs>
+
+## Smart Features
+
+<AccordionGroup>
+  <Accordion title="Follow-Up Suggestions" icon="lightbulb">
+    After every response, Arivu generates 3 contextual follow-up questions as clickable bubbles. These are schema-aware and guide you deeper into your data.
+  </Accordion>
+  <Accordion title="Semantic Caching" icon="bolt">
+    If you ask the same question twice within 5 minutes, Arivu instantly returns the cached result without re-running the pipeline.
+  </Accordion>
+  <Accordion title="Self-Healing SQL" icon="wand-magic-sparkles">
+    If the generated SQL has a syntax error, the `query_verifier` loops back to the `sql_generator` automatically. Up to 3 retries before escalating to the error boundary.
+  </Accordion>
+</AccordionGroup>
+

@@ -3,7 +3,7 @@ arivu.pipeline
 ─────────────────────
 Public API for the agentic pipeline layer.
 
-    from ARIVU.pipeline import run_pipeline, PipelineResult
+    from arivu.pipeline import run_pipeline, PipelineResult
 """
 
 from .runner import run_pipeline, PipelineResult

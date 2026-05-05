@@ -1,0 +1,519 @@
+---
+title: "Implementation Guide"
+description: "Step-by-step analysis and deployment checklist for all platforms"
+---
+
+This guide provides a comprehensive analysis of Arivu's architecture and a detailed checklist for deploying across different platforms.
+
+## Architecture Analysis (A-Z)
+
+### Backend Components
+
+<AccordionGroup>
+  <Accordion title="API Server" defaultOpen icon="server">
+    **Technology**: FastAPI + Uvicorn
+    **Port**: 8000 (configurable)
+    **Requirements**:
+    - Python 3.10+
+    - ~512 MB RAM minimum
+    - Async-capable runtime
+    
+    **Key Endpoints**:
+    - POST `/api/chat` - Execute queries
+    - GET `/api/health` - Health check
+    - WebSocket `/ws/live` - Real-time updates
+    - GET `/api/traces` - Pipeline traces
+    - GET `/api/sessions` - Session history
+  </Accordion>
+  
+  <Accordion title="Database Connectors" icon="database">
+    **Supported Databases**:
+    - PostgreSQL (primary)
+    - MySQL
+    - SQLite
+    - Snowflake
+    - Databricks
+    
+    **Connection Pool**: SQLAlchemy with psycopg2/pymysql
+    **Requirements**: 
+    - Network access to database
+    - Proper credentials/auth
+    - ~10-50 MS latency to DB is acceptable
+  </Accordion>
+  
+  <Accordion title="LLM Integration" icon="brain">
+    **Supported Providers**:
+    - OpenAI (GPT-4, GPT-4o)
+    - Anthropic (Claude)
+    - Groq (Mixtral, Llama)
+    - DeepSeek
+    - HuggingFace (via Replicate)
+    - Ollama (local)
+    
+    **Requirements**:
+    - API keys stored in secrets manager
+    - Internet access to LLM endpoints
+    - Rate limiting awareness
+    - Cost monitoring
+  </Accordion>
+  
+  <Accordion title="Memory Backend" icon="layers">
+    **Options**:
+    
+    **SQLite**: Local file-based
+    - File: `arivu.db`
+    - Storage: Local filesystem or mounted volume
+    - Performance: Excellent for &lt;100 concurrent users
+    - Scaling: Poor for distributed deployment
+    
+    **Redis**: Distributed in-memory
+    - URL: `redis://host:port/db`
+    - Storage: In-memory with optional persistence
+    - Performance: Excellent for high concurrency
+    - Scaling: Excellent with Redis Cluster
+  </Accordion>
+  
+  <Accordion title="Cache Layer" icon="zap">
+    **Caching Strategy**:
+    - HTTP response caching (ETag, Last-Modified)
+    - Redis cache for query results (300s TTL)
+    - Frontend browser cache (manifest caching)
+    - CDN caching for static assets
+    
+    **Cache Keys**:
+    - Semantic similarity on queries
+    - Session ID + query hash
+    - LLM model version
+  </Accordion>
+  
+  <Accordion title="Background Jobs" icon="activity">
+    **Current Implementation**:
+    - Synchronous within request
+    - Pipeline execution inline
+    - No message queue (yet)
+    
+    **For Large-Scale**:
+    - Celery + Redis for async tasks
+    - Schema refresh as background job
+    - Report generation queue
+  </Accordion>
+  
+  <Accordion title="Security & Auth" icon="lock">
+    **API Key Authentication**:
+    - Header: `X-API-Key`
+    - Validation on all endpoints
+    - Environment: `ARIVU_API_KEY`
+    
+    **User Context**:
+    - Session-per-user isolation
+    - User ID in logs for audit
+    - No build-in RBAC (extensible)
+    
+    **Database Credentials**:
+    - Never in code
+    - Secrets manager (AWS/Azure/etc)
+    - Rotation ready
+  </Accordion>
+</AccordionGroup>
+
+### Frontend Components
+
+<AccordionGroup>
+  <Accordion title="Next.js Application" defaultOpen icon="layout-grid">
+    **Technology**: Next.js 15.5.9 + React 19
+    **Build Output**: Static HTML/JS/CSS
+    **Port**: 3000 (dev), served on prod port
+    **Build Size**: ~2-3 MB (gzipped)
+    
+    **Key Pages**:
+    - `/` - Dashboard home
+    - `/connections` - Database connections
+    - `/llms` - LLM provider config
+    - `/traces` - Pipeline tracing
+    - `/chat` - Interactive query builder
+  </Accordion>
+  
+  <Accordion title="Component Library" icon="components">
+    **UI Framework**: Radix UI + Tailwind CSS
+    **Icons**: Lucide React
+    **Charts**: Chart.js (via CrayonAI)
+    **Tables**: TanStack React Table
+    **Notifications**: Sonner toasts
+    
+    **Asset Size**:
+    - HTML: ~150 KB
+    - JavaScript: ~1.5 MB (bundled)
+    - CSS: ~300 KB
+    - Custom fonts: ~500 KB
+  </Accordion>
+  
+  <Accordion title="API Communication" icon="network">
+    **Base URL**:
+    - Dev: `http://localhost:8000`
+    - Prod: `/api` (same origin)
+    
+    **Integration Points**:
+    - `/api/chat` - Query execution
+    - `/api/connections` - DB management
+    - `/api/llms` - LLM settings
+    - `/api/traces` - Execution traces
+    - `/api/export` - Data export
+    
+    **Request Pattern**:
+    - JSON request/response
+    - CORS handling for cross-origin
+    - Error propagation to UI
+  </Accordion>
+  
+  <Accordion title="State Management" icon="state">
+    **Approach**: React hooks + Context API
+    **Page State**:
+    - Session ID persisted
+    - User preferences in localStorage
+    - Query results in React state
+    - Real-time updates via WebSocket
+    
+    **Session Persistence**:
+    - LocalStorage: Settings, preferences
+    - URL params: Query context
+    - Cookies: Authentication (if needed)
+  </Accordion>
+  
+  <Accordion title="Performance Optimization" icon="fast-forward">
+    **Code Splitting**:
+    - Dynamic imports for route pages
+    - Lazy loading for modals/dialogs
+    
+    **Image Optimization**:
+    - Next.js Image component
+    - Responsive srcset
+    - WebP format support
+    
+    **Caching Strategy**:
+    - Static pages: 30 days
+    - Dynamic pages: 1 hour
+    - Scripts: 1 year (with hash)
+  </Accordion>
+</AccordionGroup>
+
+### Supporting Infrastructure
+
+<AccordionGroup>
+  <Accordion title="Load Balancing" icon="scaling">
+    **For Backend**:
+    - HTTP Health checks every 30s
+    - Sticky sessions for WebSocket
+    - Round-robin for stateless APIs
+    
+    **For Frontend**:
+    - DNS-level (Route 53, Azure DNS)
+    - CloudFront/CDN for static
+    - Geo-routing if multi-region
+  </Accordion>
+  
+  <Accordion title="Monitoring & Logging" icon="monitor">
+    **What to Track**:
+    - API latency (p50, p95, p99)
+    - Error rates by endpoint
+    - Database query performance
+    - LLM token usage and cost
+    - Memory usage growth
+    - Cache hit ratios
+    
+    **Log Aggregation**:
+    - Centralized logging (CloudWatch, Datadog)
+    - Structured JSON logs
+    - Request tracing across services
+  </Accordion>
+  
+  <Accordion title="Backup & Disaster Recovery" icon="backup">
+    **Database Backups**:
+    - Automated daily backups (7-30 day retention)
+    - Point-in-time recovery capability
+    - Cross-region replication (optional)
+    - Test restores weekly
+    
+    **Configuration Backups**:
+    - Git version control for IaC
+    - Secrets in encrypted storage
+    - Database connection strings in vault
+  </Accordion>
+  
+  <Accordion title="Networking" icon="network">
+    **VPC/Network Setup**:
+    - Public subnets for ALB/frontend
+    - Private subnets for backend/database
+    - NAT Gateway for outbound traffic
+    - Security groups (least privilege)
+    
+    **DNS Configuration**:
+    - Apex domain → CDN/LB
+    - API subdomain → Backend
+    - WebSocket endpoint → Backend (sticky)
+  </Accordion>
+</AccordionGroup>
+
+## Deployment Scenario Comparison
+
+### Scenario 1: Startup (0-1000 MAU)
+
+<Columns cols={2}>
+  <Card title="Recommended Platform" icon="rocket">
+    Railway or Render
+  </Card>
+  <Card title="Estimated Cost" icon="dollar-sign">
+    $10-20/month
+  </Card>
+</Columns>
+
+```
+Frontend: Vercel (free tier)
+Backend: Railway/Render ($5-10)
+Database: Railway PostgreSQL ($5-10)
+Memory: SQLite (local) or Redis add-on
+```
+
+### Scenario 2: Small Business (1000-10000 MAU)
+
+<Columns cols={2}>
+  <Card title="Recommended Platform" icon="trending-up">
+    DigitalOcean App Platform
+  </Card>
+  <Card title="Estimated Cost" icon="dollar-sign">
+    $40-60/month
+  </Card>
+</Columns>
+
+```
+Frontend: Vercel Pro or DigitalOcean App
+Backend: DigitalOcean App ($12)
+Database: DigitalOcean Managed DB ($15)
+Memory: DigitalOcean Redis ($15)
+CDN: Included
+```
+
+### Scenario 3: Mid-Market (10000-100000 MAU)
+
+<Columns cols={2}>
+  <Card title="Recommended Platform" icon="building">
+    AWS ECS or Azure App Service
+  </Card>
+  <Card title="Estimated Cost" icon="dollar-sign">
+    $100-200/month
+  </Card>
+</Columns>
+
+```
+Frontend: CloudFront + S3 ($10-15)
+Backend: ECS Fargate 2x tasks ($50)
+Database: RDS PostgreSQL ($40-60)
+Memory: ElastiCache Redis ($20)
+Monitoring: CloudWatch logs ($20)
+```
+
+### Scenario 4: Enterprise (100000+ MAU)
+
+<Columns cols={2}>
+  <Card title="Recommended Platform" icon="crown">
+    AWS EKS or Azure AKS
+  </Card>
+  <Card title="Estimated Cost" icon="dollar-sign">
+    $300-500/month
+  </Card>
+</Columns>
+
+```
+Frontend: Multi-CDN, Route 53 geo-routing
+Backend: EKS auto-scaling ($100-150)
+Database: RDS Aurora Multi-AZ ($80-100)
+Memory: ElastiCache Redis Cluster ($50)
+Monitoring: Datadog/NewRelic ($50-100)
+DR: Multi-region hot standby ($100+)
+```
+
+## Platform Decision Matrix
+
+<Tabs>
+  <Tab title="Quick Decision Tree">
+    1. **Budget?**
+       - < $20/month → Railway, Render
+       - $20-100/month → DigitalOcean, Heroku
+       - > $100/month → AWS, Azure
+    
+    2. **Complexity tolerance?**
+       - Very low → Vercel + Railway
+       - Low → DigitalOcean, Render
+       - Medium → AWS ECS
+       - High → AWS EKS, Azure AKS
+    
+    3. **Existing cloud provider?**
+       - AWS user → ECS or EKS
+       - Azure user → App Service or AKS
+       - None → DigitalOcean, Railway
+  </Tab>
+  
+  <Tab title="Matrix">
+    | Factor | Railway | DigitalOcean | AWS | Azure |
+    |--------|---------|--------------|-----|-------|
+    | Price | $ | $$ | $$$ | $$ |
+    | Ease | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐ |
+    | Scalability | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+    | Control | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+  </Tab>
+</Tabs>
+
+## Universal Deployment Checklist
+
+<Steps>
+  <Step title="Pre-Deployment">
+    - [ ] Code review and testing complete
+    - [ ] Environment variables documented
+    - [ ] Database migration tested locally
+    - [ ] Docker image builds successfully
+    - [ ] All dependencies in requirements.txt
+    - [ ] API keys secured (no hardcoded values)
+    - [ ] Health check endpoints configured
+    - [ ] Monitoring/logging configured
+  </Step>
+  
+  <Step title="Infrastructure Setup">
+    - [ ] VPC/networking created
+    - [ ] Database provisioned and tested
+    - [ ] Redis/cache provisioned
+    - [ ] Secrets manager configured
+    - [ ] SSL certificates ready
+    - [ ] DNS records configured
+    - [ ] Load balancer configured
+    - [ ] Auto-scaling policies defined
+  </Step>
+  
+  <Step title="Deployment">
+    - [ ] Docker images built and pushed
+    - [ ] Task definitions/manifests created
+    - [ ] Environment variables set
+    - [ ] Database migrations run
+    - [ ] Initial deployment (canary or blue-green)
+    - [ ] Smoke tests passing
+    - [ ] Monitoring alerts triggered
+    - [ ] Team notified
+  </Step>
+  
+  <Step title="Post-Deployment">
+    - [ ] Health checks all green
+    - [ ] Log aggregation working
+    - [ ] Metrics dashboards visible
+    - [ ] Alerts tested
+    - [ ] Backup verified
+    - [ ] Performance baseline established
+    - [ ] Documentation updated
+    - [ ] Incident response plan ready
+  </Step>
+  
+  <Step title="Optimization">
+    - [ ] Monitor CPU/memory usage
+    - [ ] Identify bottlenecks
+    - [ ] Adjust auto-scaling thresholds
+    - [ ] Optimize database queries
+    - [ ] Tune cache TTLs
+    - [ ] Review error logs
+    - [ ] Plan capacity for next quarter
+  </Step>
+</Steps>
+
+## Platform-Specific Checklists
+
+<Tabs>
+  <Tab title="AWS ECS">
+    - [ ] VPC created with public/private subnets
+    - [ ] RDS database created and tested
+    - [ ] ElastiCache Redis cluster created
+    - [ ] ECR repositories created
+    - [ ] IAM roles and policies configured
+    - [ ] ECS cluster created
+    - [ ] CloudWatch log groups created
+    - [ ] ALB created and configured
+    - [ ] Auto Scaling group configured
+    - [ ] Route 53 DNS configured
+    - [ ] CloudFront distribution created (optional)
+    - [ ] S3 buckets for logs/backups created
+  </Tab>
+  
+  <Tab title="Azure App Service">
+    - [ ] Resource Group created
+    - [ ] App Service Plan sized appropriately
+    - [ ] Web App created
+    - [ ] Azure SQL Database created
+    - [ ] Azure Cache for Redis created
+    - [ ] Container Registry created
+    - [ ] Container image uploaded
+    - [ ] Key Vault created
+    - [ ] Managed Identity enabled
+    - [ ] Application Gateway configured
+    - [ ] Auto-scaling rules defined
+    - [ ] Application Insights enabled
+  </Tab>
+  
+  <Tab title="DigitalOcean">
+    - [ ] Droplet created (if VPS) or App Platform app
+    - [ ] PostgreSQL database created
+    - [ ] Redis cluster created
+    - [ ] Container Registry created
+    - [ ] Image built and pushed
+    - [ ] Domain configured
+    - [ ] SSL certificate activated
+    - [ ] Firewall configured
+    - [ ] Monitoring alerts setup
+    - [ ] Backups configured
+    - [ ] App Platform connected to GitHub
+  </Tab>
+  
+  <Tab title="Heroku/Railway">
+    - [ ] Project created
+    - [ ] GitHub connected
+    - [ ] PostgreSQL add-on provisioned
+    - [ ] Redis add-on provisioned
+    - [ ] Environment variables set
+    - [ ] Procfile configured
+    - [ ] Buildpack selected
+    - [ ] Deploy triggers configured
+    - [ ] Custom domain configured
+    - [ ] SSL enabled
+    - [ ] Logs configured
+    - [ ] Auto-scaling enabled (if available)
+  </Tab>
+</Tabs>
+
+## Success Criteria
+
+After deployment, verify:
+
+<Columns cols={3}>
+  <Card title="Performance" icon="zap">
+    - API p99 latency < 2s
+    - Frontend load < 3s
+    - 99.9% uptime
+  </Card>
+  
+  <Card title="Reliability" icon="shield-check">
+    - Health checks 100% green
+    - Automatic failover working
+    - Zero data loss
+    - Backups tested
+  </Card>
+  
+  <Card title="Security" icon="lock">
+    - No hardcoded secrets
+    - HTTPS everywhere
+    - Access logs present
+    - Encryption enabled
+  </Card>
+</Columns>
+
+## Next Steps
+
+1. **Choose Your Platform**: Review the options and select based on your scenario
+2. **Follow Platform Guide**: Go to AWS, Azure, or Other Platforms section
+3. **Test Locally First**: Use Docker Compose to test the full stack
+4. **Use This Checklist**: Mark off items as you complete them
+5. **Set Up Monitoring**: Don't skip logging and alerting
+6. **Plan Scaling**: Know your growth strategy beforehand

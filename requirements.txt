@@ -19,9 +19,4 @@ pydub
 pytesseract
 Pillow
 redis
-SpeechRecognition
-pydub
-pytesseract
-Pillow
-redis
 grandalf

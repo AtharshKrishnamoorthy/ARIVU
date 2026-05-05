@@ -48,7 +48,7 @@ from arivu.connection.exceptions import AuthError
 # 2. User mode — permission violation caught by verifier
 # ─────────────────────────────────────────
 
-# db_user = ARIVU.connect(
+# db_user = Arivu.connect(
 #     host="localhost", port=5432, user="atharsh",
 #     password="secret", dbname="ecommerce", mode="user",
 # )
@@ -66,7 +66,7 @@ from arivu.connection.exceptions import AuthError
 # 3. Admin mode — destructive SQL → approval gate
 # ─────────────────────────────────────────
 
-# db_admin = ARIVU.connect(
+# db_admin = Arivu.connect(
 #     host="localhost", port=5432, user="admin",
 #     password="admin_secret", dbname="ecommerce", mode="admin",
 # )

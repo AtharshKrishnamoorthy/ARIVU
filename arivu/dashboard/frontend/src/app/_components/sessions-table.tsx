@@ -10,12 +10,24 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import type { Session } from "../../../services/types";
-import { Database, Search } from "lucide-react";
+import { Database, Search, Eye, LayoutDashboard, MessageSquare } from "lucide-react";
+
+import { DataTable } from "@/components/ui/data-table";
+import { ColumnDef } from "@tanstack/react-table";
+
+const DIALECT_LOGOS: Record<string, string> = {
+  postgresql: "/postgresql-logo.svg",
+  mysql: "/mysql-logo.svg",
+  sqlite: "/sqlite-logo.svg",
+  snowflake: "/snowflake-ar21.svg",
+  databricks: "/azure-databricks.svg",
+};
 
 function fmtTs(ts: number | undefined): string {
   if (!ts) return "—";
@@ -44,6 +56,104 @@ export function SessionsTable({ sessions, loading, onSelect, globalSearch = "" }
       s.session_id.toLowerCase().includes(query) ||
       (s.last_question || "").toLowerCase().includes(query)
   );
+
+  const columns: ColumnDef<Session>[] = [
+    {
+      accessorKey: "session_id",
+      header: "Session ID",
+      cell: ({ row }) => (
+        <span className="font-mono text-[11px] text-muted-foreground">
+          {row.original.session_id.slice(0, 10)}…
+        </span>
+      ),
+    },
+    {
+      accessorKey: "dialect",
+      header: "Dialect",
+      cell: ({ row }) => {
+        const dialect = row.original.dialect;
+        return dialect ? (
+          <div className="flex items-center gap-1.5">
+            <img
+              src={DIALECT_LOGOS[dialect] || DIALECT_LOGOS.postgresql}
+              alt={dialect}
+              className="w-3.5 h-3.5 object-contain flex-shrink-0"
+            />
+            <span className="text-[10px] text-muted-foreground capitalize">{dialect}</span>
+          </div>
+        ) : (
+          <span className="text-[10px] text-muted-foreground/30">—</span>
+        );
+      },
+    },
+    {
+      accessorKey: "interface",
+      header: "Interface",
+      cell: ({ row }) => {
+        const intf = row.original.interface || "dashboard";
+        const Icon = intf === "dashboard" ? LayoutDashboard : MessageSquare;
+        return (
+          <Badge variant="outline" className="text-muted-foreground bg-muted/20 text-[10px] px-1.5 py-0 capitalize flex items-center gap-1 w-fit">
+            <Icon className="w-3 h-3 opacity-70" />
+            {intf}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: "query_count",
+      header: "Queries",
+      cell: ({ row }) => <span className="text-xs font-medium">{row.original.query_count}</span>,
+    },
+    {
+      accessorKey: "error_count",
+      header: "Errors",
+      cell: ({ row }) => {
+        const errors = row.original.error_count;
+        return errors > 0 ? (
+          <Badge variant="outline" className="text-red-500 border-red-500/20 bg-red-500/5 text-[10px] px-1.5 py-0">
+            {errors}
+          </Badge>
+        ) : (
+          <span className="text-xs text-muted-foreground">0</span>
+        );
+      },
+    },
+    {
+      accessorKey: "last_question",
+      header: "Last Question",
+      cell: ({ row }) => (
+        <span className="text-xs text-muted-foreground max-w-[150px] truncate block">
+          {row.original.last_question || "—"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "last_ts",
+      header: "Last Active",
+      cell: ({ row }) => (
+        <span className="text-[11px] text-muted-foreground font-mono whitespace-nowrap">
+          {fmtTs(row.original.last_ts)}
+        </span>
+      ),
+    },
+    {
+      id: "actions",
+      cell: ({ row }) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground hover:bg-accent"
+          onClick={(ev) => {
+            ev.stopPropagation();
+            onSelect(row.original.session_id);
+          }}
+        >
+          <Eye className="w-3.5 h-3.5" />
+        </Button>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-4">
@@ -81,58 +191,7 @@ export function SessionsTable({ sessions, loading, onSelect, globalSearch = "" }
           </CardContent>
         </Card>
       ) : (
-        <Card className="bg-card border-border">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                {["Session ID", "Queries", "Errors", "Last Question", "Last Active"].map(
-                  (h) => (
-                    <TableHead
-                      key={h}
-                      className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium h-9"
-                    >
-                      {h}
-                    </TableHead>
-                  )
-                )}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((s, i) => (
-                <motion.tr
-                  key={s.session_id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: i * 0.02 }}
-                  className="border-border hover:bg-accent/50 cursor-pointer transition-colors"
-                  onClick={() => onSelect(s.session_id)}
-                >
-                  <TableCell className="font-mono text-xs text-muted-foreground py-2.5">
-                    {s.session_id.slice(0, 20)}…
-                  </TableCell>
-                  <TableCell className="text-xs font-medium py-2.5">
-                    {s.query_count}
-                  </TableCell>
-                  <TableCell className="py-2.5">
-                    {s.error_count > 0 ? (
-                      <Badge variant="outline" className="text-red-500 border-red-500/20 bg-red-500/5 text-[10px] px-1.5 py-0">
-                        {s.error_count}
-                      </Badge>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">0</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate py-2.5">
-                    {s.last_question || "—"}
-                  </TableCell>
-                  <TableCell className="text-[11px] text-muted-foreground font-mono py-2.5 whitespace-nowrap">
-                    {fmtTs(s.last_ts)}
-                  </TableCell>
-                </motion.tr>
-              ))}
-            </TableBody>
-          </Table>
-        </Card>
+        <DataTable columns={columns} data={filtered} />
       )}
     </div>
   );

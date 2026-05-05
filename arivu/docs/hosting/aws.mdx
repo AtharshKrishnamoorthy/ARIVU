@@ -1,0 +1,391 @@
+---
+title: "AWS Deployment"
+description: "Deploy Arivu on AWS using ECS, EKS, Lambda, and RDS"
+---
+
+AWS is the largest cloud provider with the most flexible deployment options for Arivu. This guide covers all available architectures.
+
+## Architecture Comparison
+
+<Tabs>
+  <Tab title="ECS + RDS (Recommended for most)">
+    **Best for**: Production workloads, balanced cost/complexity
+    
+    - **Compute**: ECS Fargate (serverless containers)
+    - **Database**: RDS PostgreSQL/MySQL
+    - **Storage**: S3 for static files
+    - **Memory**: ElastiCache Redis
+    - **Load Balancing**: Application Load Balancer
+    - **DNS**: Route 53
+    - **Monitoring**: CloudWatch
+    
+    **Estimated Uptime**: 99.99% | **Scalability**: High | **Cost**: $$$
+  </Tab>
+  
+  <Tab title="EKS (Kubernetes)">
+    **Best for**: Multi-region, DevOps teams, existing K8s infrastructure
+    
+    - **Orchestration**: Amazon EKS
+    - **Nodes**: EC2 or Fargate
+    - **Storage**: EBS volumes, EFS
+    - **Database**: RDS Aurora
+    - **Networking**: VPC, ALB Ingress Controller
+    - **Monitoring**: CloudWatch Insights
+    
+    **Estimated Uptime**: 99.95% | **Scalability**: Very High | **Cost**: $$$$
+  </Tab>
+  
+  <Tab title="Lambda + API Gateway">
+    **Best for**: Low-traffic, event-driven, serverless-first
+    
+    - **Compute**: AWS Lambda
+    - **API**: API Gateway
+    - **Database**: DynamoDB or Aurora Serverless
+    - **Storage**: S3
+    - **Functions**: One Lambda per integration
+    
+    **Estimated Uptime**: 99.99% | **Scalability**: Auto | **Cost**: $
+  </Tab>
+  
+  <Tab title="EC2 (Traditional)">
+    **Best for**: Legacy requirements, full control
+    
+    - **Compute**: EC2 Auto Scaling Group
+    - **Database**: RDS
+    - **Storage**: S3, EBS
+    - **Load Balancing**: ALB
+    - **OS**: Amazon Linux 2, Ubuntu
+    
+    **Estimated Uptime**: 99.9% | **Scalability**: Medium | **Cost**: $$$
+  </Tab>
+</Tabs>
+
+## Recommended: ECS Fargate Architecture
+
+### Step-by-Step Implementation
+
+<Steps>
+  <Step title="1. Create AWS Account & IAM Setup">
+    ```bash
+    # Configure AWS CLI
+    aws configure
+    
+    # Create IAM role for ECS
+    aws iam create-role --role-name ecsTaskExecutionRole \
+      --assume-role-policy-document file://trust-policy.json
+    
+    # Attach required policies
+    aws iam attach-role-policy --role-name ecsTaskExecutionRole \
+      --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+    ```
+  </Step>
+  
+  <Step title="2. Create VPC & Network Infrastructure">
+    Use Terraform or CloudFormation to create:
+    - VPC with public/private subnets
+    - NAT Gateway for outbound traffic
+    - Security Groups for ECS, RDS
+    
+    ```hcl
+    resource "aws_vpc" "arivu" {
+      cidr_block = "10.0.0.0/16"
+      
+      tags = {
+        Name = "arivu-vpc"
+      }
+    }
+    
+    resource "aws_subnet" "public" {
+      vpc_id            = aws_vpc.arivu.id
+      cidr_block        = "10.0.1.0/24"
+      availability_zone = "us-east-1a"
+    }
+    ```
+  </Step>
+  
+  <Step title="3. Set Up RDS Database">
+    Create PostgreSQL database:
+    
+    ```bash
+    aws rds create-db-instance \
+      --db-instance-identifier arivu-db \
+      --db-instance-class db.t3.micro \
+      --engine postgres \
+      --master-username postgres \
+      --master-user-password SecurePassword123! \
+      --allocated-storage 20 \
+      --vpc-security-group-ids sg-xxxxx
+    ```
+  </Step>
+  
+  <Step title="4. Create ElastiCache Redis">
+    For distributed memory backend:
+    
+    ```bash
+    aws elasticache create-cache-cluster \
+      --cache-cluster-id arivu-redis \
+      --cache-node-type cache.t3.micro \
+      --engine redis \
+      --num-cache-nodes 1
+    ```
+  </Step>
+  
+  <Step title="5. Create ECR Repositories">
+    ```bash
+    # Backend
+    aws ecr create-repository --repository-name arivu-backend
+    
+    # Frontend
+    aws ecr create-repository --repository-name arivu-frontend
+    
+    # Login to ECR
+    aws ecr get-login-password --region us-east-1 | \
+      docker login --username AWS --password-stdin 123456789.dkr.ecr.us-east-1.amazonaws.com
+    ```
+  </Step>
+  
+  <Step title="6. Build and Push Docker Images">
+    **Dockerfile for Backend:**
+    ```dockerfile
+    FROM python:3.10-slim
+    
+    WORKDIR /app
+    
+    # Install system dependencies
+    RUN apt-get update && apt-get install -y \
+      build-essential libpq-dev && rm -rf /var/lib/apt/lists/*
+    
+    # Copy requirements
+    COPY requirements.txt .
+    RUN pip install --no-cache-dir -r requirements.txt
+    
+    # Copy app
+    COPY arivu ./arivu
+    
+    # Expose port
+    EXPOSE 8000
+    
+    # Health check
+    HEALTHCHECK --interval=30s CMD curl -f http://localhost:8000/api/health
+    
+    # Start server
+    CMD ["uvicorn", "arivu.dashboard.backend._app:app", "--host", "0.0.0.0", "--port", "8000"]
+    ```
+    
+    **Build and push:**
+    ```bash
+    docker build -t arivu-backend:latest .
+    docker tag arivu-backend:latest 123456789.dkr.ecr.us-east-1.amazonaws.com/arivu-backend:latest
+    docker push 123456789.dkr.ecr.us-east-1.amazonaws.com/arivu-backend:latest
+    ```
+  </Step>
+  
+  <Step title="7. Create ECS Task Definition">
+    ```json
+    {
+      "family": "arivu-backend",
+      "networkMode": "awsvpc",
+      "requiresCompatibilities": ["FARGATE"],
+      "cpu": "512",
+      "memory": "1024",
+      "containerDefinitions": [
+        {
+          "name": "arivu-backend",
+          "image": "123456789.dkr.ecr.us-east-1.amazonaws.com/arivu-backend:latest",
+          "portMappings": [
+            {
+              "containerPort": 8000,
+              "hostPort": 8000,
+              "protocol": "tcp"
+            }
+          ],
+          "environment": [
+            {
+              "name": "MEMORY_BACKEND",
+              "value": "redis"
+            },
+            {
+              "name": "REDIS_URL",
+              "value": "redis://arivu-redis:6379/0"
+            }
+          ],
+          "secrets": [
+            {
+              "name": "DATABASE_URL",
+              "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789:secret:arivu/db-url"
+            },
+            {
+              "name": "OPENAI_API_KEY",
+              "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789:secret:arivu/openai-key"
+            }
+          ],
+          "logConfiguration": {
+            "logDriver": "awslogs",
+            "options": {
+              "awslogs-group": "/ecs/arivu-backend",
+              "awslogs-region": "us-east-1",
+              "awslogs-stream-prefix": "ecs"
+            }
+          }
+        }
+      ]
+    }
+    ```
+  </Step>
+  
+  <Step title="8. Create ECS Service">
+    ```bash
+    aws ecs create-service \
+      --cluster arivu-cluster \
+      --service-name arivu-backend \
+      --task-definition arivu-backend:1 \
+      --desired-count 2 \
+      --launch-type FARGATE \
+      --network-configuration "awsvpcConfiguration={subnets=[subnet-xxxxx],securityGroups=[sg-xxxxx],assignPublicIp=ENABLED}" \
+      --load-balancers targetGroupArn=arn:aws:elasticloadbalancing:...,containerName=arivu-backend,containerPort=8000
+    ```
+  </Step>
+  
+  <Step title="9. Set Up Load Balancer">
+    ```bash
+    # Create Application Load Balancer
+    aws elbv2 create-load-balancer \
+      --name arivu-alb \
+      --subnets subnet-xxxxx subnet-yyyyy \
+      --security-groups sg-xxxxx
+    
+    # Create target group
+    aws elbv2 create-target-group \
+      --name arivu-backend-tg \
+      --protocol HTTP \
+      --port 8000 \
+      --vpc-id vpc-xxxxx
+    ```
+  </Step>
+  
+  <Step title="10. Configure Auto Scaling">
+    ```bash
+    aws application-autoscaling register-scalable-target \
+      --service-namespace ecs \
+      --resource-id service/arivu-cluster/arivu-backend \
+      --scalable-dimension ecs:service:DesiredCount \
+      --min-capacity 2 \
+      --max-capacity 10
+    
+    # Create scaling policy
+    aws application-autoscaling put-scaling-policy \
+      --policy-name cpu-scaling \
+      --service-namespace ecs \
+      --resource-id service/arivu-cluster/arivu-backend \
+      --scalable-dimension ecs:service:DesiredCount \
+      --policy-type TargetTrackingScaling \
+      --target-tracking-scaling-policy-configuration file://scaling-policy.json
+    ```
+  </Step>
+</Steps>
+
+## Cost Breakdown (Monthly)
+
+| Component | Size | Cost |
+|-----------|------|------|
+| ECS Fargate (backend) | 2x 512 CPU, 1GB RAM | $50 |
+| RDS PostgreSQL | db.t3.micro | $30 |
+| ElastiCache Redis | cache.t3.micro | $20 |
+| Load Balancer | 1x ALB | $15 |
+| Data Transfer | ~100 GB/month | $15 |
+| **Total** | | **$130/month** |
+
+## Security Best Practices
+
+<AccordionGroup>
+  <Accordion title="Secrets Management" defaultOpen icon="lock">
+    Store all secrets in AWS Secrets Manager:
+    
+    ```bash
+    aws secretsmanager create-secret \
+      --name arivu/openai-key \
+      --secret-string "sk-..."
+    
+    aws secretsmanager create-secret \
+      --name arivu/db-url \
+      --secret-string "postgresql://user:pass@host/db"
+    ```
+  </Accordion>
+  
+  <Accordion title="Network Security" icon="shield">
+    - Security Group: Only allow port 8000 from ALB
+    - VPC: Place RDS in private subnet
+    - NAT Gateway: For outbound internet access
+    - VPC Flow Logs: Monitor traffic
+  </Accordion>
+  
+  <Accordion title="Access Control" icon="key">
+    - IAM roles with least privilege
+    - No root account usage
+    - Enable MFA on console login
+    - Use AWS SSO for team access
+  </Accordion>
+  
+  <Accordion title="Monitoring & Audits" icon="activity">
+    - CloudWatch for logs and metrics
+    - X-Ray for request tracing
+    - CloudTrail for audit logs
+    - GuardDuty for threat detection
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Tasks not starting">
+    ```bash
+    # Check task logs
+    aws logs get-log-events \
+      --log-group-name /ecs/arivu-backend \
+      --log-stream-name ecs/arivu-backend/xxxxx
+    
+    # Check task details
+    aws ecs describe-tasks \
+      --cluster arivu-cluster \
+      --tasks arn:aws:ecs:...
+    ```
+  </Accordion>
+  
+  <Accordion title="High memory usage">
+    - Increase task memory allocation
+    - Check for memory leaks in LLM calls
+    - Use Redis instead of SQLite for memory backend
+  </Accordion>
+  
+  <Accordion title="Database connection errors">
+    - Verify RDS security group allows traffic from ECS security group
+    - Check database credentials in Secrets Manager
+    - Verify connection string format
+  </Accordion>
+</AccordionGroup>
+
+## Scaling Considerations
+
+<Columns cols={2}>
+  <Card title="Horizontal Scaling" icon="trending-up">
+    - Load Balancer distributes traffic
+    - Auto Scaling Group expands/shrinks
+    - State stored in Redis (not local)
+    - Supports unlimited horizontal scale
+  </Card>
+  
+  <Card title="Vertical Scaling" icon="maximize">
+    - Increase CPU/memory per task
+    - Improve database instance size
+    - Use RDS Aurora for read replicas
+    - Implement query caching
+  </Card>
+</Columns>
+
+## Next Steps
+
+1. **Customize the setup**: Modify VPC CIDR, instance types, and region
+2. **Set up CI/CD**: GitHub Actions to auto-build and deploy
+3. **Configure monitoring**: CloudWatch dashboards and alarms
+4. **Implement backup strategy**: RDS automated backups, S3 versioning
+5. **Plan scaling**: Set auto-scaling policies based on metrics

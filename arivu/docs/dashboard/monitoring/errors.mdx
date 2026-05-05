@@ -1,0 +1,37 @@
+---
+title: "Error Boundaries"
+description: "Detect, isolate, and recover from execution anomalies."
+---
+
+<Frame>
+  <img src="/images/arivu-error.png" alt="Error Boundaries" className="rounded-xl border border-gray-200 dark:border-gray-800" />
+</Frame>
+
+## Overview
+
+When Arivu hits an unrecoverable state (e.g., an LLM parsing failure, or unreachable database host), the pipeline delegates control to the `error_boundary` node, which logs precisely to this dashboard pane.
+
+<CardGroup cols={2}>
+  <Card title="Stack Trace Preservation" icon="bug">
+    Full Python stack traces mapped to the specific failing LangGraph node.
+  </Card>
+  <Card title="Anomaly Categorization" icon="filter">
+    Differentiates between schema extraction issues, LLM rate limits, and semantic errors.
+  </Card>
+</CardGroup>
+
+## Common Error Types
+
+<AccordionGroup>
+  <Accordion title="SQL Syntax Failure" icon="code" defaultOpen>
+    The LLM generated invalid SQL that exceeded the maximum retry limit (3 attempts). The trace shows all correction attempts before the final failure.
+  </Accordion>
+  <Accordion title="Rate Limiting (429)" icon="ban">
+    Your LLM provider returned a rate-limit error. Consider switching to a provider with higher quotas or enabling semantic caching to reduce call volume.
+  </Accordion>
+  <Accordion title="Database Unreachable" icon="plug-circle-xmark">
+    The `db_execution` node could not connect to the target database. Verify your connection string and firewall rules.
+  </Accordion>
+</AccordionGroup>
+
+<Warning>Errors are logged with full context (question, generated SQL, node, and Python traceback) to enable quick root-cause analysis.</Warning>

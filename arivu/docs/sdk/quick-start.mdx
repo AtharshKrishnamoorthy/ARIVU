@@ -1,0 +1,74 @@
+---
+title: "Quick Start"
+description: "Start building with the Arivu SDK."
+---
+
+# Arivu SDK Quick Start
+
+Get started with the Arivu SDK to build AI-powered agents connected to your databases. The SDK natively integrates with LLMs, memory, and your SQL environment.
+
+## Installation
+
+<Steps>
+  <Step title="Install Arivu">
+    Use `pip` to install the core `arivu` package.
+    <CodeGroup>
+      ```bash pip
+      pip install arivu
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Connect to your Database">
+    Initialize the `Arivu` client with your database credentials.
+    <CodeGroup>
+      ```python python
+      from arivu import Arivu
+
+      db = Arivu.connect(
+          host="localhost",
+          port=5432,
+          user="postgres",
+          password="password",
+          dbname="mydb",
+          mode="user",            # 'user' mode limits destructive queries
+          dialect="postgresql",
+      )
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Run the Pipeline">
+    Pass a natural language string into the pipeline query interface to securely interact with the database.
+    <CodeGroup>
+      ```python python
+      from arivu.pipeline import run_pipeline
+
+      pipeline_input = db.query("Show me the top 10 customers by total spend")
+      result = run_pipeline(pipeline_input)
+
+      if result.success:
+          print(result.response)
+          print(f"Generated SQL: {result.sql}")
+      else:
+          print(result.error)
+      ```
+    </CodeGroup>
+  </Step>
+</Steps>
+
+## Architecture Overview
+
+Arivu translates natural language intents into secure, constrained SQL operations. The pipeline incorporates RLHF verification layers, dynamic schema lookup, and rich memory integration.
+
+<CardGroup cols={2}>
+  <Card title="Databases" icon="database" href="/sdk/databases">
+    Connect seamlessly to PostgeSQL, SQLite, and MySQL.
+  </Card>
+  <Card title="LLM Configuration" icon="brain" href="/sdk/llms">
+    Configure provider settings and adapt the reasoning engines.
+  </Card>
+  <Card title="Application Integrations" icon="plug" href="/sdk/integrations/rest">
+    Expose your agent through REST API, Slack, Telegram, WhatsApp, or Discord integrations.
+  </Card>
+</CardGroup>

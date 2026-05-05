@@ -15,49 +15,52 @@ Arivu is an open-source framework designed for building autonomous database agen
 1. **A Powerful Python SDK**: Allows engineers to orchestrate text-to-SQL pipelines, hook up custom agents, and seamlessly inject memory layers.
 2. **A Sleek Dashboard UI**: A Next.js-based no-code observability platform designed for teams to instantly connect dialects, select cloud models, execute conversational prompts, and inspect pipeline execution latency.
 
-## Key Features
+## Explore
 
 <CardGroup cols={2}>
   <Card
-    title="Multi-Dialect Federation"
-    icon="database"
-    href="/dashboard/connections"
-  >
-    Securely manage simultaneous connections across PostgreSQL, MySQL, and SQLite seamlessly with zero configuration drift.
-  </Card>
-  <Card
-    title="LLM Routing"
-    icon="brain-circuit"
-    href="/dashboard/llms"
-  >
-    Dynamically route prompts to OpenAI, Anthropic, Groq, Ollama, DeepSeek, or HuggingFace from the application layer.
-  </Card>
-  <Card
-    title="Pipeline Observability"
-    icon="chart-simple"
+    title="Dashboard"
+    icon="desktop"
     href="/dashboard/overview"
   >
-    Granularly inspect execution traces, context generation latency, and compilation errors inside a beautiful dark-mode interface.
+    Explore your data with a beautifully crafted, theme-aware user interface.
   </Card>
   <Card
-    title="Agentic Deployment"
+    title="Python SDK"
     icon="code"
-    href="/sdk/usage"
+    href="/sdk/quick-start"
   >
-    Use our streamlined `pip install arivu` Python toolkit to extend custom tooling natively inside your production apps.
+    Embed Arivu directly into your own applications using our Python SDK.
   </Card>
-</CardGroup>
-
-## Next Steps
-
-Learn how to get Arivu running locally in less than 60 seconds.
-
-<CardGroup cols={1}>
   <Card
-    title="Quickstart Guide"
-    icon="bolt"
-    href="/quickstart"
+    title="MCP Server"
+    icon="plug"
+    href="/mcp/overview"
   >
-    Explore our quickstart tutorial to launch the Arivu ecosystem.
+    Connect Arivu directly to Claude Desktop using the Model Context Protocol.
+  </Card>
+  <Card
+    title="Memory System"
+    icon="brain"
+    href="/memory/overview"
+  >
+    Understand how Arivu persists sessions, traces, and feedback signals.
   </Card>
 </CardGroup>
+
+## Highlights
+
+<AccordionGroup>
+  <Accordion title="Generative Visualizations" icon="chart-simple">
+    Arivu automatically detects tabular data and generates interactive, theme-aware charts using Thesys C1.
+  </Accordion>
+  <Accordion title="Self-Healing SQL" icon="wand-magic-sparkles">
+    If the LLM generates invalid SQL, the `query_verifier` node automatically loops back and corrects the syntax before execution.
+  </Accordion>
+  <Accordion title="Admin Gatekeeper" icon="shield-check">
+    Destructive operations (like `DROP` or `DELETE`) are flagged by the pipeline and safely paused until an admin explicitly approves them.
+  </Accordion>
+  <Accordion title="Semantic Caching" icon="bolt">
+    Repeated queries are instantly served from a TTL cache, bypassing the LLM layer completely for lightning-fast responses.
+  </Accordion>
+</AccordionGroup>

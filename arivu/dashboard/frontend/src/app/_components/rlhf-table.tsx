@@ -21,7 +21,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { RLHFEntry } from "../../../services/types";
-import { ThumbsUp } from "lucide-react";
+import { ThumbsUp, LayoutDashboard, MessageSquare } from "lucide-react";
+
+const DIALECT_LOGOS: Record<string, string> = {
+  postgresql: "/postgresql-logo.svg",
+  mysql: "/mysql-logo.svg",
+  sqlite: "/sqlite-logo.svg",
+  snowflake: "/snowflake-ar21.svg",
+  databricks: "/azure-databricks.svg",
+};
 
 function fmtTs(ts: number | undefined): string {
   if (!ts) return "—";
@@ -43,6 +51,9 @@ interface RLHFTableProps {
   loading: boolean;
 }
 
+import { DataTable } from "@/components/ui/data-table";
+import { ColumnDef } from "@tanstack/react-table";
+
 export function RLHFTable({ entries, loading }: RLHFTableProps) {
   const [signalFilter, setSignalFilter] = useState<string>("all");
 
@@ -53,6 +64,119 @@ export function RLHFTable({ entries, loading }: RLHFTableProps) {
 
   const pos = entries.filter((e) => e.signal === "positive").length;
   const neg = entries.filter((e) => e.signal === "negative").length;
+
+  const columns: ColumnDef<RLHFEntry>[] = [
+    {
+      accessorKey: "signal",
+      header: "Signal",
+      cell: ({ row }) => {
+        const sig = row.original.signal;
+        return (
+          <Badge
+            variant="outline"
+            className={
+              sig === "positive"
+                ? "text-emerald-500 border-emerald-500/20 bg-emerald-500/5 text-[10px] px-1.5 py-0"
+                : "text-red-500 border-red-500/20 bg-red-500/5 text-[10px] px-1.5 py-0"
+            }
+          >
+            {sig === "positive" ? "👍" : "👎"} {sig}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: "dialect",
+      header: "Dialect",
+      cell: ({ row }) => {
+        const dialect = row.original.dialect;
+        return dialect ? (
+          <div className="flex items-center gap-1.5">
+            <img
+              src={DIALECT_LOGOS[dialect] || DIALECT_LOGOS.postgresql}
+              alt={dialect}
+              className="w-3.5 h-3.5 object-contain flex-shrink-0"
+            />
+            <span className="text-[10px] text-muted-foreground capitalize">{dialect}</span>
+          </div>
+        ) : (
+          <span className="text-[10px] text-muted-foreground/30">—</span>
+        );
+      },
+    },
+    {
+      accessorKey: "interface",
+      header: "Interface",
+      cell: ({ row }) => {
+        const intf = row.original.interface || "dashboard";
+        const Icon = intf === "dashboard" ? LayoutDashboard : MessageSquare;
+        return (
+          <Badge variant="outline" className="text-muted-foreground bg-muted/20 text-[10px] px-1.5 py-0 capitalize flex items-center gap-1 w-fit">
+            <Icon className="w-3 h-3 opacity-70" />
+            {intf}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: "question",
+      header: "Question",
+      cell: ({ row }) => (
+        <span className="text-xs text-muted-foreground max-w-[160px] truncate block">
+          {truncate(row.original.question, 35)}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "sql",
+      header: "SQL",
+      cell: ({ row }) => (
+        <span className="font-mono text-[11px] text-muted-foreground max-w-[140px] truncate block">
+          {truncate(row.original.sql, 30)}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "approved",
+      header: "Approved",
+      cell: ({ row }) => {
+        const ok = row.original.approved;
+        if (ok === true) {
+          return (
+            <Badge variant="outline" className="text-emerald-500 border-emerald-500/20 bg-emerald-500/5 text-[10px] px-1.5 py-0">
+              ✓ yes
+            </Badge>
+          );
+        }
+        if (ok === false) {
+          return (
+            <Badge variant="outline" className="text-red-500 border-red-500/20 bg-red-500/5 text-[10px] px-1.5 py-0">
+              ✗ no
+            </Badge>
+          );
+        }
+        return <span className="text-xs text-muted-foreground">—</span>;
+      },
+    },
+    {
+      accessorKey: "session_id",
+      header: "Session",
+      cell: ({ row }) => (
+        <span className="font-mono text-[11px] text-muted-foreground whitespace-nowrap">
+          {row.original.session_id ? row.original.session_id.slice(0, 12) + "…" : "—"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "ts",
+      header: "Time",
+      cell: ({ row }) => (
+        <span className="text-[11px] text-muted-foreground font-mono whitespace-nowrap">
+          {fmtTs(row.original.ts)}
+        </span>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-4">
@@ -99,73 +223,7 @@ export function RLHFTable({ entries, loading }: RLHFTableProps) {
           </CardContent>
         </Card>
       ) : (
-        <Card className="bg-card border-border">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                {["Signal", "Question", "SQL", "Approved", "Session", "Time"].map(
-                  (h) => (
-                    <TableHead
-                      key={h}
-                      className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium h-9"
-                    >
-                      {h}
-                    </TableHead>
-                  )
-                )}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((e, i) => (
-                <motion.tr
-                  key={`${e.session_id}-${e.ts}-${i}`}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: i * 0.02 }}
-                  className="border-border hover:bg-accent/50 transition-colors"
-                >
-                  <TableCell className="py-2.5">
-                    <Badge
-                      variant="outline"
-                      className={
-                        e.signal === "positive"
-                          ? "text-emerald-500 border-emerald-500/20 bg-emerald-500/5 text-[10px] px-1.5 py-0"
-                          : "text-red-500 border-red-500/20 bg-red-500/5 text-[10px] px-1.5 py-0"
-                      }
-                    >
-                      {e.signal === "positive" ? "👍" : "👎"} {e.signal}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground py-2.5 max-w-[160px] truncate">
-                    {truncate(e.question, 35)}
-                  </TableCell>
-                  <TableCell className="font-mono text-[11px] text-muted-foreground py-2.5 max-w-[140px] truncate">
-                    {truncate(e.sql, 30)}
-                  </TableCell>
-                  <TableCell className="py-2.5">
-                    {e.approved === true ? (
-                      <Badge variant="outline" className="text-emerald-500 border-emerald-500/20 bg-emerald-500/5 text-[10px] px-1.5 py-0">
-                        ✓ yes
-                      </Badge>
-                    ) : e.approved === false ? (
-                      <Badge variant="outline" className="text-red-500 border-red-500/20 bg-red-500/5 text-[10px] px-1.5 py-0">
-                        ✗ no
-                      </Badge>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="font-mono text-[11px] text-muted-foreground py-2.5">
-                    {e.session_id ? e.session_id.slice(0, 12) + "…" : "—"}
-                  </TableCell>
-                  <TableCell className="text-[11px] text-muted-foreground font-mono py-2.5 whitespace-nowrap">
-                    {fmtTs(e.ts)}
-                  </TableCell>
-                </motion.tr>
-              ))}
-            </TableBody>
-          </Table>
-        </Card>
+        <DataTable columns={columns} data={filtered} />
       )}
     </div>
   );

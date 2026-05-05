@@ -1,0 +1,51 @@
+---
+title: "Memory System"
+description: "Arivu uses a scalable memory system to manage contextual session history across interactions."
+---
+
+Arivu ships with a robust and modular **Memory System** that provides context to the AI agents orchestrating Text-to-SQL logic. Memory allows Arivu to understand user references to prior messages, queries, or database tables.
+
+## Quick Storage Comparison
+
+<Tabs>
+  <Tab title="Feature Comparison">
+    | Feature | SQLite | Redis |
+    |---------|--------|-------|
+    | Setup | Zero config | Requires server |
+    | Performance | Fast locally | Very fast (in-memory) |
+    | Deployment | Single machine | Distributed |
+    | Scaling | Limited | Excellent |
+    | Best for | Development | Production |
+  </Tab>
+  <Tab title="Which Should I Use?">
+    <Columns cols={2}>
+      <Card title="Start with SQLite" icon="rocket" type="check">
+        - Developing locally
+        - Testing Arivu
+        - Single-user applications
+        - Zero infrastructure overhead
+      </Card>
+      <Card title="Migrate to Redis" icon="server" type="tip">
+        - Deploying to production
+        - Multiple workers/instances
+        - High performance needs
+        - Horizontal scaling required
+      </Card>
+    </Columns>
+  </Tab>
+</Tabs>
+
+## Built-in Storage Backends
+
+<CardGroup cols={2}>
+  <Card title="SQLite (Local)" icon="database" href="/memory/sqlite">
+    File-based local persistent memory. Great for simple setups, local development, and small applications.
+  </Card>
+  <Card title="Redis (Remote)" icon="server" href="/memory/redis">
+    In-memory data structure store. Optimized for distributed architectures, production deployments, and horizontal scaling.
+  </Card>
+</CardGroup>
+
+## Sessions & Threads
+
+Memory in Arivu operates on the concept of **Sessions** (also known as threads). Every conversation is pinned to a unique `session_id`, meaning subsequent inputs within the same session will maintain context over table schemas, previously selected rows, and prior conversational turns automatically.

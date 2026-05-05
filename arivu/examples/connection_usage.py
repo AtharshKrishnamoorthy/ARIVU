@@ -16,18 +16,18 @@ from arivu.connection.exceptions import AuthError, ModeViolationError
 # User mode is read-only — no INSERT/UPDATE/DELETE/DROP allowed.
 # ─────────────────────────────────────────
 
-db = Arivu.connect(
-    host="YOUR_DB_HOST",           # e.g. "db.example.supabase.com"
-    port=5432,                     # default PostgreSQL port
-    user="YOUR_DB_USER",           # e.g. "postgres"
-    password="YOUR_DB_PASSWORD",   # e.g. "supersecret"
-    dbname="YOUR_DB_NAME",         # e.g. "mydb"
-    mode="user",                   # "user" (read-only) or "admin" (DML allowed)
-    ttl=3600,                      # schema cache TTL in seconds
-    dialect="postgresql",          # "postgresql", "mysql", or "sqlite"
-)
+# db = Arivu.connect(
+#     host="your-db-host",           # e.g. "db.example.supabase.com"
+#     port=6543,                     # default PostgreSQL port
+#     user="your-db-user",           # e.g. "postgres"
+#     password="your-db-password",   # e.g. "supersecret"
+#     dbname="your-db-name",         # e.g. "mydb"
+#     mode="user",                   # "user" (read-only) or "admin" (DML allowed)
+#     ttl=3600,                      # schema cache TTL in seconds
+#     dialect="postgresql",          # "postgresql", "mysql", or "sqlite"
+# )
 
-print(db)
+# print(db)
 # <Arivu session=a3f1b2c4  mode=user  schema=fresh>
 
 # Hand off to the agentic pipeline

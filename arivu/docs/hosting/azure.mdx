@@ -1,0 +1,461 @@
+---
+title: "Azure Deployment"
+description: "Deploy Arivu on Azure using App Service, Container Instances, and managed databases"
+---
+
+Azure offers multiple deployment options for Arivu, from simple App Service to enterprise-grade AKS Kubernetes.
+
+## Architecture Comparison
+
+<Tabs>
+  <Tab title="App Service + Azure SQL (Recommended)">
+    **Best for**: Standard web applications, integrated Azure ecosystem
+    
+    - **Compute**: Azure App Service (PaaS)
+    - **Database**: Azure SQL Database
+    - **Storage**: Azure Blob Storage
+    - **Cache**: Azure Cache for Redis
+    - **Load Balancing**: Application Gateway
+    - **DNS**: Azure Traffic Manager
+    
+    **Estimated Uptime**: 99.95% | **Scalability**: High | **Cost**: $$
+  </Tab>
+  
+  <Tab title="Container Instances">
+    **Best for**: Quick deployments, billing per second, low ongoing maintenance
+    
+    - **Compute**: Azure Container Instances (ACI)
+    - **Database**: Azure Database for PostgreSQL
+    - **Storage**: Azure Blob Storage
+    - **Networking**: Virtual Network
+    
+    **Estimated Uptime**: 99.9% | **Scalability**: Medium | **Cost**: $
+  </Tab>
+  
+  <Tab title="AKS (Kubernetes)">
+    **Best for**: Complex deployments, DevOps, multi-region
+    
+    - **Orchestration**: Azure Kubernetes Service
+    - **Database**: Azure Database for PostgreSQL
+    - **Storage**: Managed disks, Azure Files
+    - **Networking**: Application Gateway
+    - **Monitoring**: Azure Monitor
+    
+    **Estimated Uptime**: 99.95% | **Scalability**: Very High | **Cost**: $$$
+  </Tab>
+  
+  <Tab title="Azure Functions">
+    **Best for**: Serverless, event-driven, low-cost
+    
+    - **Compute**: Azure Functions
+    - **Triggers**: HTTP, Service Bus, Timer
+    - **Database**: Cosmos DB or PostgreSQL
+    - **Storage**: Blob Storage
+    
+    **Estimated Uptime**: 99.99% | **Scalability**: Auto | **Cost**: $
+  </Tab>
+</Tabs>
+
+## Recommended: App Service Architecture
+
+### Step-by-Step Implementation
+
+<Steps>
+  <Step title="1. Create Azure Resource Group">
+    ```bash
+    # Install Azure CLI
+    # https://docs.microsoft.com/cli/azure/install-azure-cli
+    
+    # Login to Azure
+    az login
+    
+    # Create resource group
+    az group create \
+      --name arivu-rg \
+      --location eastus
+    ```
+  </Step>
+  
+  <Step title="2. Create Azure SQL Database">
+    ```bash
+    # Create SQL Server
+    az sql server create \
+      --resource-group arivu-rg \
+      --name arivu-server \
+      --admin-user sqladmin \
+      --admin-password ComplexPassword123!
+    
+    # Create database
+    az sql db create \
+      --resource-group arivu-rg \
+      --server arivu-server \
+      --name arivu_db \
+      --service-objective Basic
+    
+    # Get connection string
+    az sql db show-connection-string \
+      --server arivu-server \
+      --name arivu_db \
+      --client psql
+    ```
+  </Step>
+  
+  <Step title="3. Create Azure Cache for Redis">
+    ```bash
+    az redis create \
+      --resource-group arivu-rg \
+      --name arivu-redis \
+      --location eastus \
+      --sku Basic \
+      --vm-size c0
+    
+    # Get connection string
+    az redis list-keys \
+      --resource-group arivu-rg \
+      --name arivu-redis \
+      --query primaryKey
+    ```
+  </Step>
+  
+  <Step title="4. Create Storage Account">
+    For static files and blobs:
+    
+    ```bash
+    az storage account create \
+      --resource-group arivu-rg \
+      --name arivustg \
+      --location eastus \
+      --sku Standard_LRS
+    
+    # Create container
+    az storage container create \
+      --account-name arivustg \
+      --name frontend
+    ```
+  </Step>
+  
+  <Step title="5. Create App Service Plan">
+    ```bash
+    # Create plan
+    az appservice plan create \
+      --name arivu-plan \
+      --resource-group arivu-rg \
+      --sku B2 \
+      --is-linux
+    
+    # Create Web App
+    az webapp create \
+      --resource-group arivu-rg \
+      --plan arivu-plan \
+      --name arivu-backend \
+      --runtime "PYTHON:3.10"
+    ```
+  </Step>
+  
+  <Step title="6. Create Container Registry">
+    For managing Docker images:
+    
+    ```bash
+    az acr create \
+      --resource-group arivu-rg \
+      --name arivu \
+      --sku Basic
+    
+    # Build image in registry
+    az acr build \
+      --registry arivu \
+      --image arivu-backend:latest \
+      --file Dockerfile .
+    ```
+  </Step>
+  
+  <Step title="7. Deploy Backend Container">
+    ```bash
+    # Enable managed identity
+    az webapp identity assign \
+      --resource-group arivu-rg \
+      --name arivu-backend
+    
+    # Configure app settings
+    az webapp config appsettings set \
+      --resource-group arivu-rg \
+      --name arivu-backend \
+      --settings \
+        MEMORY_BACKEND=redis \
+        REDIS_URL="redis://:password@arivu-redis.redis.cache.windows.net:6379/0" \
+        DATABASE_URL="postgresql://..." \
+        WEBSITES_PORT=8000
+    
+    # Enable container deployment
+    az webapp config container set \
+      --name arivu-backend \
+      --resource-group arivu-rg \
+      --docker-custom-image-name arivu.azurecr.io/arivu-backend:latest \
+      --docker-registry-server-url https://arivu.azurecr.io \
+      --docker-registry-server-user username \
+      --docker-registry-server-password password
+    ```
+  </Step>
+  
+  <Step title="8. Deploy Frontend (Static Web App)">
+    ```bash
+    # Create static web app
+    az staticwebapp create \
+      --resource-group arivu-rg \
+      --name arivu-frontend \
+      --source https://github.com/your-account/arivu \
+      --location eastus \
+      --branch main \
+      --github-token ghp_xxxx
+    
+    # Get static app URL
+    az staticwebapp show \
+      --resource-group arivu-rg \
+      --name arivu-frontend \
+      --query url
+    ```
+  </Step>
+  
+  <Step title="9. Create Application Gateway">
+    Route traffic to frontend and backend:
+    
+    ```bash
+    # Create public IP
+    az network public-ip create \
+      --resource-group arivu-rg \
+      --name arivu-pip
+    
+    # Create Application Gateway
+    az network application-gateway create \
+      --resource-group arivu-rg \
+      --name arivu-appgw \
+      --location eastus \
+      --public-ip-address arivu-pip \
+      --sku Standard_v2
+    ```
+  </Step>
+  
+  <Step title="10. Configure Auto-Scaling">
+    ```bash
+    # Get App Service Plan ID
+    PLAN_ID=$(az appservice plan show \
+      --resource-group arivu-rg \
+      --name arivu-plan \
+      --query id)
+    
+    # Create auto-scale setting
+    az monitor autoscale create \
+      --resource-group arivu-rg \
+      --resource $PLAN_ID \
+      --resource-type "Microsoft.Web/serverfarms" \
+      --name arivu-autoscale \
+      --min-count 2 \
+      --max-count 10 \
+      --count 2
+    
+    # Add scaling rule
+    az monitor autoscale rule create \
+      --resource-group arivu-rg \
+      --autoscale-name arivu-autoscale \
+      --condition "Percentage CPU > 70" \
+      --scale out 1
+    ```
+  </Step>
+</Steps>
+
+## Dockerfile for Azure
+
+```dockerfile
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+  build-essential libpq-dev curl && \
+  rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy app
+COPY arivu ./arivu
+
+# Expose port (Azure expects WEBSITES_PORT)
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+  CMD curl -f http://localhost:8000/api/health || exit 1
+
+# Start server
+CMD ["uvicorn", "arivu.dashboard.backend._app:app", \
+     "--host", "0.0.0.0", "--port", "8000", \
+     "--access-log", "--log-level", "info"]
+```
+
+## Cost Breakdown (Monthly)
+
+| Component | Size | Cost |
+|-----------|------|------|
+| App Service | B2 plan, 2 instances | $50 |
+| Azure SQL | Basic tier | $5 |
+| Azure Cache | Basic, 250 MB | $15 |
+| Blob Storage | 100 GB | $2 |
+| Static Web App | 1 app | Free |
+| **Total** | | **$72/month** |
+
+## Security Best Practices
+
+<AccordionGroup>
+  <Accordion title="Azure Key Vault" defaultOpen icon="lock">
+    Store secrets securely:
+    
+    ```bash
+    # Create key vault
+    az keyvault create \
+      --resource-group arivu-rg \
+      --name arivu-kv
+    
+    # Store secrets
+    az keyvault secret set \
+      --vault-name arivu-kv \
+      --name openai-api-key \
+      --value "sk-..."
+    
+    # Access in app
+    az webapp config appsettings set \
+      --resource-group arivu-rg \
+      --name arivu-backend \
+      --settings "@{[Email Protected]:/subscriptions/xxxx/resourceGroups/arivu-rg/providers/Microsoft.KeyVault/vaults/arivu-kv/secrets/openai-api-key"
+    ```
+  </Accordion>
+  
+  <Accordion title="Managed Identity" icon="shield">
+    - Enable managed identity on App Service
+    - Grant access to Key Vault and databases
+    - No credential management needed
+  </Accordion>
+  
+  <Accordion title="Network Security" icon="network">
+    - Virtual Network integration
+    - Private endpoints for databases
+    - Application Gateway WAF rules
+    - DDoS Protection Standard
+  </Accordion>
+  
+  <Accordion title="Monitoring & Compliance" icon="activity">
+    - Azure Monitor for logs
+    - Application Insights for tracing
+    - Azure Policy for compliance
+    - Log Analytics for analysis
+  </Accordion>
+</AccordionGroup>
+
+## CI/CD with Azure DevOps
+
+```yaml
+trigger:
+  - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  dockerRegistryServiceConnection: 'arivu'
+  imageRepository: 'arivu-backend'
+  containerRegistry: 'arivu.azurecr.io'
+  dockerfilePath: '$(Build.SourcesDirectory)/Dockerfile'
+  tag: '$(Build.BuildId)'
+
+stages:
+- stage: Build
+  displayName: Build and Push
+  jobs:
+  - job: BuildImage
+    displayName: Build Docker Image
+    steps:
+    - task: Docker@2
+      displayName: Build and push image
+      inputs:
+        command: buildAndPush
+        repository: $(imageRepository)
+        dockerfile: $(dockerfilePath)
+        containerRegistry: $(dockerRegistryServiceConnection)
+        tags: |
+          $(tag)
+          latest
+
+- stage: Deploy
+  displayName: Deploy to App Service
+  dependsOn: Build
+  condition: succeeded()
+  jobs:
+  - deployment: DeployToAppService
+    displayName: Deploy
+    environment: 'production'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: AzureWebAppContainer@1
+            inputs:
+              azureSubscription: connection
+              appName: arivu-backend
+              imageName: $(containerRegistry)/$(imageRepository):$(tag)
+```
+
+## Scaling Considerations
+
+<Columns cols={2}>
+  <Card title="App Service Scaling" icon="trending-up">
+    - Auto scale based on CPU/Memory
+    - 2-10 instances typical range
+    - Scale out for traffic, in to save costs
+  </Card>
+  
+  <Card title="Database Scaling" icon="database">
+    - Azure SQL: DTU or vCore models
+    - Read replicas for high traffic
+    - Connection pooling in app
+  </Card>
+</Columns>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="App Service startup issues">
+    ```bash
+    # Check logs
+    az webapp log download \
+      --resource-group arivu-rg \
+      --name arivu-backend
+    
+    # Stream logs in real-time
+    az webapp log tail \
+      --resource-group arivu-rg \
+      --name arivu-backend
+    ```
+  </Accordion>
+  
+  <Accordion title="Connection to database failing">
+    - Check Firewall rules: Allow Azure services
+    - Verify connection string format
+    - Check SSL/TLS certificate if required
+  </Accordion>
+  
+  <Accordion title="Performance degradation">
+    - Check CPU/Memory metrics in Portal
+    - Review Query Performance Insights
+    - Increase databases DTU tier
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+1. **Customize settings**: Adjust SKUs, regions, and scaling policies
+2. **Set up CI/CD**: Connect to GitHub/Azure DevOps
+3. **Configure monitoring**: Application Insights dashboards
+4. **Plan DR strategy**: Backup and disaster recovery
+5. **Implement security**: Azure AD, WAF, DDoS protection

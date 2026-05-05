@@ -1,0 +1,27 @@
+---
+title: "Ollama SDK"
+description: "Initialize the Arivu pipeline using Ollama as the routing engine."
+---
+
+## Integration
+
+You can assign Ollama as your generation engine either by passing kwargs into the connection object or through environment variables.
+
+<CodeGroup>
+```python python
+import os
+from arivu import Arivu
+
+os.environ["OLLAMA_BASE_URL"] = "..."
+
+db = Arivu.connect(
+    # DB arguments...
+    llm_provider="ollama",
+    model="deepseek-coder-v2"
+)
+```
+</CodeGroup>
+
+<Note>
+  Ensure your `arivu-ai[llm]` optional dependencies are installed via `pip install arivu-ai[ollama]` if necessary.
+</Note>

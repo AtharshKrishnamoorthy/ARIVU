@@ -9,6 +9,23 @@ export interface TraceEvent {
   status: "ok" | "fail" | "retry" | "skip";
 }
 
+/** A single rendered chat message (frontend only — built from HistoryEntry). */
+export interface ChatMessage {
+  id: string;
+  role: "user" | "bot";
+  content: string;
+  sql?: string | null;
+  error?: string | null;
+  ts: number;
+  responseMs?: number;  // latency in ms for bot messages
+  /* ── Thesys C1 Generative UI fields ── */
+  raw_result?: Record<string, unknown>[] | null;
+  has_tabular_data?: boolean;
+  c1_response?: string | null;
+  visualizing?: boolean;
+  question_text?: string;   // original user question for this exchange
+}
+
 /** One complete pipeline execution trace. */
 export interface Trace {
   question: string;
@@ -16,6 +33,12 @@ export interface Trace {
   ts: number;
   session_id: string;
   events: TraceEvent[];
+  dialect?: string;
+  connection_meta?: {
+    dialect?: string;
+    display?: string;
+    mode?: string;
+  };
 }
 
 /** GET /api/traces response. */
@@ -31,6 +54,8 @@ export interface Session {
   error_count: number;
   last_question: string;
   last_ts: number;
+  dialect?: string;
+  interface?: string;
 }
 
 /** GET /api/sessions response. */
@@ -48,6 +73,13 @@ export interface ErrorEntry {
   sql: string;
   session_id: string;
   ts: number;
+  dialect?: string;
+  interface?: string;
+  connection_meta?: {
+    dialect?: string;
+    display?: string;
+    mode?: string;
+  };
 }
 
 /** GET /api/errors response. */
@@ -64,6 +96,8 @@ export interface RLHFEntry {
   approved: boolean | null;
   session_id: string;
   ts: number;
+  dialect?: string;
+  interface?: string;
 }
 
 /** GET /api/rlhf response. */

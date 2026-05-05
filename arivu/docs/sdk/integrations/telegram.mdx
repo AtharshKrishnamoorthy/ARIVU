@@ -1,0 +1,78 @@
+---
+title: "Telegram Integration"
+description: "Connect Arivu to Telegram with text, voice, image queries, approvals, and inline feedback."
+---
+
+import { Callout, Steps, CardGroup, Card } from "mintlify/components";
+
+## What the backend needs
+
+The Telegram adapter in `integrations/telegram_adapter.py` is the most feature-rich chat adapter:
+
+- `TELEGRAM_BOT_TOKEN` or `token`
+- Optional `admin_user_ids` for approval control
+- Optional voice support dependencies for transcription
+- Optional OCR dependencies for image queries
+
+## What Telegram users can do
+
+<CardGroup cols={2}>
+    <Card title="Text Queries" icon="message-circle">
+        Send a normal message and Arivu will answer with a natural language result.
+    </Card>
+    <Card title="Voice Messages" icon="mic">
+        Send voice messages and Arivu will transcribe them before running the pipeline.
+    </Card>
+    <Card title="Image Messages" icon="image">
+        Send screenshots or photos and Arivu will OCR the text before querying.
+    </Card>
+    <Card title="Approval Buttons" icon="shield-check">
+        Destructive SQL gets inline Approve / Reject buttons for admins.
+    </Card>
+</CardGroup>
+
+## Setup steps
+
+<Steps>
+    <Step title="Create a bot">
+        Create a Telegram bot with [BotFather](https://t.me/BotFather) and copy the token.
+    </Step>
+    <Step title="Set environment variables">
+        Export `TELEGRAM_BOT_TOKEN` or pass the token directly to the adapter.
+    </Step>
+    <Step title="Add admin users">
+        Pass Telegram user IDs in `admin_user_ids` so approvals only go to trusted admins.
+    </Step>
+    <Step title="Install optional extras">
+        Install speech and OCR packages if you want voice and image support.
+    </Step>
+    <Step title="Start polling">
+        Call `adapter.start()` to begin polling for Telegram updates.
+    </Step>
+</Steps>
+
+## Example
+
+```python
+from arivu.integrations.telegram_adapter import TelegramIntegration
+
+adapter = TelegramIntegration(
+        db=db,
+        token="123456:ABC-DEF...",
+        admin_user_ids=[123456789, 987654321],
+)
+
+adapter.start()
+```
+
+## Backend behavior
+
+- Session IDs are mapped as `telegram:{user_id}`.
+- `/start`, `/help`, `/refresh`, `/approve`, and `/reject` are supported.
+- Text messages go directly through the pipeline.
+- Approved SQL is executed after admin confirmation.
+- Successful responses include inline 👍 / 👎 RLHF buttons.
+
+<Callout type="info">
+    Telegram is the best choice if you want text plus voice and image input without webhooks or public endpoints.
+</Callout>

@@ -1,0 +1,221 @@
+---
+title: "Redis"
+description: "Distributed in-memory storage for production deployments"
+---
+
+## Overview
+
+For production environments where horizontal scaling is required, use Redis as your Arivu memory backend.
+
+<AccordionGroup>
+  <Accordion title="Pros ✅" defaultOpen>
+    - **Distributed architecture** - Share state across multiple workers
+    - **High performance** - In-memory data store with microsecond latency
+    - **Scalable** - Handles high concurrency efficiently
+    - **Cluster support** - Redis cluster for fault tolerance
+    - **Session sharing** - Multiple instances can access the same sessions
+  </Accordion>
+  <Accordion title="Cons ⚠️">
+    - **Requires external service** - Must run a Redis server
+    - **Data persistence overhead** - Requires configuration for durability
+    - **Memory constraints** - Limited by available RAM
+  </Accordion>
+</AccordionGroup>
+
+## Configuration
+
+<Warning>Redis must be installed and running before Arivu can connect to it. Choose a setup method below:</Warning>
+
+<Tabs>
+  <Tab title="Docker (Recommended)">
+    Easiest way to get Redis running locally:
+    ```bash
+    docker run -d -p 6379:6379 redis:latest
+    ```
+  </Tab>
+  <Tab title="Local Installation">
+    <Tabs>
+      <Tab title="macOS">
+        ```bash
+        brew install redis
+        redis-server
+        ```
+      </Tab>
+      <Tab title="Ubuntu/Debian">
+        ```bash
+        sudo apt-get install redis-server
+        redis-server
+        ```
+      </Tab>
+      <Tab title="Windows">
+        Use WSL2 or Docker (recommended)
+      </Tab>
+    </Tabs>
+  </Tab>
+</Tabs>
+
+<Steps>
+  <Step title="Set Environment Variables">
+    Add these to your `.env` file:
+    ```env
+    MEMORY_BACKEND=redis
+    REDIS_URL=redis://localhost:6379/0
+    ```
+  </Step>
+  <Step title="Verify Connection">
+    Test your Redis connection:
+    ```bash
+    redis-cli ping
+    # Should respond with: PONG
+    ```
+  </Step>
+  <Step title="Initialize Arivu">
+    Start using Redis in your Python code:
+    ```python
+    from arivu.memory import RedisBackend, SessionStore
+
+    backend = RedisBackend(redis_url="redis://localhost:6379/0")
+    store = SessionStore(backend=backend)
+    ```
+  </Step>
+</Steps>
+
+### Connection String Format
+
+```
+redis://[user:password@]host:port[/db-number]
+```
+
+<CodeGroup>
+```plaintext Local Development
+redis://localhost:6379/0
+```
+```plaintext Docker Container
+redis://redis:6379/0
+```
+```plaintext With Authentication
+redis://:password@redis.example.com:6379/0
+```
+</CodeGroup>
+
+## Performance Optimization
+
+<AccordionGroup>
+  <Accordion title="Connection Pooling" defaultOpen icon="plug">
+    RedisBackend automatically handles connection pooling, so you don't need to configure it manually.
+  </Accordion>
+  <Accordion title="Data Persistence" icon="database">
+    Configure RDB or AOF to ensure your data survives Redis restarts:
+    ```bash
+    # In redis.conf
+    save 900 1          # Save if 1 key changed in 900 seconds
+    appendonly yes      # Enable AOF persistence
+    ```
+  </Accordion>
+  <Accordion title="Memory Management" icon="memory">
+    <Warning>Redis stores everything in RAM. Monitor memory usage to prevent out-of-memory errors.</Warning>
+    - Set a max memory policy: `maxmemory-policy allkeys-lru`
+    - Monitor with `redis-cli INFO memory`
+    - Clean up old sessions regularly
+  </Accordion>
+  <Accordion title="Clustering" icon="network">
+    For high availability, use Redis Cluster:
+    ```bash
+    redis-cli cluster create node1:6379 node2:6379 node3:6379 \
+      node4:6379 node5:6379 node6:6379
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Production Deployment
+
+<Tabs>
+  <Tab title="Standard Setup">
+    ```env
+    REDIS_URL=redis://redis-master:6379/0
+    MEMORY_BACKEND=redis
+    ```
+  </Tab>
+  <Tab title="Clustered Setup">
+    ```env
+    REDIS_URL=redis://redis-master:6379/0
+    REDIS_CLUSTER=true
+    REDIS_REPLICAS=2
+    ```
+  </Tab>
+  <Tab title="Kubernetes">
+    ```yaml
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: arivu-config
+    data:
+      MEMORY_BACKEND: redis
+      REDIS_URL: redis://redis-service:6379/0
+    ```
+  </Tab>
+</Tabs>
+
+## When to Use Redis
+
+Use Redis when you:
+- Need to scale horizontally (multiple workers)
+- Require high performance and low latency
+- Want to share sessions across services
+- Are deploying to production
+- Need fault tolerance and failover
+
+<Tip>Redis is ideal for microservices architectures where multiple Arivu instances need to share session state.</Tip>
+
+## Monitoring & Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Health Checks" icon="activity">
+    Test your Redis connection:
+    ```bash
+    # Check if Redis is responding
+    redis-cli ping
+    # Should respond with: PONG
+    
+    # Check connected clients
+    redis-cli INFO clients
+    
+    # Monitor memory usage
+    redis-cli INFO memory
+    
+    # Check database size
+    redis-cli DBSIZE
+    ```
+  </Accordion>
+  <Accordion title="Troubleshooting" icon="alert-circle">
+    <AccordionGroup>
+      <Accordion title="Connection Refused">
+        **Problem**: Cannot connect to Redis
+        
+        **Solutions:**
+        - Ensure Redis server is running: `redis-cli ping`
+        - Check connection string is correct
+        - Verify firewall rules allow the port
+        - Check credentials if using authentication
+      </Accordion>
+      <Accordion title="High Memory Usage">
+        **Problem**: Redis consuming too much memory
+        
+        **Solutions:**
+        - Review session retention policies
+        - Clear old sessions: `redis-cli FLUSHALL` (use with caution)
+        - Set max memory limit: `maxmemory 2gb` in config
+        - Monitor with `redis-cli INFO memory`
+      </Accordion>
+      <Accordion title="Performance Issues">
+        **Problem**: Slow session operations
+        
+        **Solutions:**
+        - Check Redis response times: `redis-cli --latency`
+        - Verify network connectivity
+        - Consider Redis clustering for high load
+        - Monitor with `redis-cli --stat`
+      </Accordion>
+    </AccordionGroup>
+  </Accordion>
+</AccordionGroup>

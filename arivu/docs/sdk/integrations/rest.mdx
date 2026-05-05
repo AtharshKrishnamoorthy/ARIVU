@@ -1,0 +1,271 @@
+---
+title: "REST Integration"
+description: "Expose Arivu as a clean HTTP API for web apps, mobile clients, CLIs, and custom services."
+---
+
+<Tabs>
+  <Tab title="Theory & Example">
+    ## What the backend needs
+
+    The REST adapter in `integrations/rest_adapter.py` exposes the pipeline as a FastAPI application.
+
+    Required values:
+
+    - `ARIVU_API_KEY` or `api_key` if you want auth
+    - A host and port for the API server
+    - Optional CORS configuration when embedding in browser apps
+
+    ## What the REST API returns
+
+    <CardGroup cols={2}>
+      <Card title="Query result" icon="magnifying-glass">
+        Returns the generated SQL, the natural-language response, success state, and session ID.
+      </Card>
+      <Card title="Approval flow" icon="shield-check">
+        Returns `pending_approval: true` when the SQL must be approved before execution.
+      </Card>
+      <Card title="RLHF feedback" icon="thumbs-up-down">
+        Accepts positive/negative feedback for a session.
+      </Card>
+      <Card title="Health check" icon="activity">
+        Returns backend health, integration name, schema age, and active mode.
+      </Card>
+    </CardGroup>
+
+    ## Setup steps
+
+    <Steps>
+      <Step title="Create the REST server">
+        Instantiate `RESTIntegration` with your Arivu connection.
+      </Step>
+      <Step title="Add an API key">
+        Set `ARIVU_API_KEY` if you want requests to require authentication.
+      </Step>
+      <Step title="Start the server">
+        Call `adapter.start(host="0.0.0.0", port=8000)` or mount the FastAPI app in your own process.
+      </Step>
+      <Step title="Call /query">
+        POST a natural-language question and receive the generated SQL and answer in the JSON response.
+      </Step>
+    </Steps>
+
+    ## Example
+
+    ```python
+    from arivu.integrations.rest_adapter import RESTIntegration
+
+    adapter = RESTIntegration(
+        db=db,
+        api_key="your-secret-key",
+    )
+
+    adapter.start(host="0.0.0.0", port=8000)
+    ```
+
+    ```bash
+    curl -X POST http://localhost:8000/query \
+      -H "Content-Type: application/json" \
+      -H "X-API-Key: your-secret-key" \
+      -d '{"question":"How many users signed up today?","user_id":"rest_user"}'
+    ```
+
+    ## Backend behavior
+
+    - Session IDs default to the provided `user_id` field, so API clients can keep their own session identity.
+    - `pending_approval` responses are returned in JSON so a caller can show a manual approval flow.
+    - `/refresh` refreshes the schema cache.
+    - `/session/{session_id}` returns stored session history.
+    - CORS is enabled by default to support browser clients, but you should restrict origins in production.
+
+    <Callout type="warning">
+      Use an API key in production. The REST adapter is intentionally simple so you can plug it into any client, but that also means auth is your responsibility.
+    </Callout>
+  </Tab>
+
+  <Tab title="API Docs">
+    ## API overview
+
+    The REST adapter exposes the following backend endpoints:
+
+    <CardGroup cols={2}>
+      <Card title="POST /query" icon="magnifying-glass">
+        Run a natural language query and receive the response model.
+      </Card>
+      <Card title="POST /approve/{session_id}" icon="shield-check">
+        Approve a pending SQL operation and execute it.
+      </Card>
+      <Card title="POST /reject/{session_id}" icon="xmark">
+        Reject a pending SQL operation.
+      </Card>
+      <Card title="POST /feedback/{session_id}" icon="thumbs-up-down">
+        Save RLHF feedback for the session.
+      </Card>
+      <Card title="GET /session/{session_id}" icon="clock">
+        Fetch stored session history.
+      </Card>
+      <Card title="GET /health" icon="heart-pulse">
+        Check service health and schema age.
+      </Card>
+    </CardGroup>
+
+    ### `POST /query`
+
+    **Request model: `QueryRequest`**
+
+    <ParamField body="question" type="string" required pre={["required"]}>
+      Natural-language prompt to answer.
+    </ParamField>
+    <ParamField body="user_id" type="string" default="rest_user" pre={["optional"]}>
+      Session owner for the query. This becomes part of the backend session identity.
+    </ParamField>
+    <ParamField body="rlhf_signal" type="string" pre={["optional"]}>
+      Optional feedback signal forwarded into the pipeline when you want to pre-tag the request.
+    </ParamField>
+
+    **Response model: `QueryResponse`**
+
+    <ResponseField name="response" type="string" required pre={["required"]}>
+      Final answer returned by the pipeline.
+    </ResponseField>
+    <ResponseField name="sql" type="string" required pre={["required"]}>
+      Generated SQL that Arivu produced for the query.
+    </ResponseField>
+    <ResponseField name="success" type="boolean" required pre={["required"]}>
+      Indicates whether the pipeline completed successfully.
+    </ResponseField>
+    <ResponseField name="pending_approval" type="boolean" required pre={["required"]}>
+      Set to `true` when the SQL must be approved before execution.
+    </ResponseField>
+    <ResponseField name="session_id" type="string" required pre={["required"]}>
+      Session identifier used by the backend for history, approval, and feedback.
+    </ResponseField>
+    <ResponseField name="error" type="string | null" pre={["optional"]}>
+      Error text when the pipeline fails, otherwise `null`.
+    </ResponseField>
+
+    **Example request**
+
+    ```bash
+    curl -X POST http://localhost:8000/query \
+      -H "Content-Type: application/json" \
+      -H "X-API-Key: your-secret-key" \
+      -d '{"question":"How many users signed up today?","user_id":"rest_user"}'
+    ```
+
+    ### `POST /approve/{session_id}`
+
+    **Request model**
+
+    <ParamField path="session_id" type="string" required pre={["required"]}>
+      Session whose pending SQL should be approved and executed.
+    </ParamField>
+    <ParamField header="X-API-Key" type="string" pre={["optional"]}>
+      API key required when authentication is enabled.
+    </ParamField>
+
+    **Response model**
+
+    <ResponseField name="status" type="string" required pre={["required"]}>
+      Returns `approved` when the pending SQL has been executed.
+    </ResponseField>
+    <ResponseField name="session_id" type="string" required pre={["required"]}>
+      The session that was approved.
+    </ResponseField>
+
+    **What happens**
+
+    - Looks up the pending SQL for the session
+    - Marks it as approved
+    - Executes the verified SQL directly through the SQLAlchemy engine
+
+    ### `POST /reject/{session_id}`
+
+    **Request model**
+
+    <ParamField path="session_id" type="string" required pre={["required"]}>
+      Session whose pending SQL should be rejected.
+    </ParamField>
+
+    **Response model**
+
+    <ResponseField name="status" type="string" required pre={["required"]}>
+      Returns `rejected` when the pending SQL is discarded.
+    </ResponseField>
+    <ResponseField name="session_id" type="string" required pre={["required"]}>
+      The session that was rejected.
+    </ResponseField>
+
+    **What happens**
+
+    - Marks the pending approval as rejected
+    - Does not execute any SQL
+
+    ### `POST /feedback/{session_id}`
+
+    **Request model**
+
+    <ParamField path="session_id" type="string" required pre={["required"]}>
+      Session receiving the feedback signal.
+    </ParamField>
+    <ParamField body="signal" type="string" required pre={["required"]}>
+      Feedback value. Use `positive` or `negative`.
+    </ParamField>
+
+    **Response model**
+
+    <ResponseField name="status" type="string" required pre={["required"]}>
+      Returns `ok` after the feedback is stored.
+    </ResponseField>
+    <ResponseField name="signal" type="string" required pre={["required"]}>
+      The feedback value that was saved.
+    </ResponseField>
+
+    ### `GET /session/{session_id}`
+
+    **Request model**
+
+    <ParamField path="session_id" type="string" required pre={["required"]}>
+      Session whose stored history should be returned.
+    </ParamField>
+
+    **Response model**
+
+    <ResponseField name="history" type="array" required pre={["required"]}>
+      Stored messages, results, and actions for the session.
+    </ResponseField>
+
+    ### `POST /refresh`
+
+    **Response model**
+
+    <ResponseField name="status" type="string" required pre={["required"]}>
+      Usually returns `ok` when the schema cache refreshes.
+    </ResponseField>
+    <ResponseField name="message" type="string" required pre={["required"]}>
+      Human-readable confirmation text.
+    </ResponseField>
+
+    ### `GET /health`
+
+    **Response model**
+
+    <ResponseField name="status" type="string" required pre={["required"]}>
+      Should always be `ok` when the service is healthy.
+    </ResponseField>
+    <ResponseField name="integration" type="string" required pre={["required"]}>
+      Always returns `rest`.
+    </ResponseField>
+    <ResponseField name="schema_age_seconds" type="number" required pre={["required"]}>
+      Age of the cached schema in seconds.
+    </ResponseField>
+    <ResponseField name="mode" type="string" required pre={["required"]}>
+      Current backend mode such as `user` or `admin`.
+    </ResponseField>
+
+    ## Implementation notes
+
+    - This integration is FastAPI-based, so it can be mounted into a larger app or run standalone.
+    - Authentication is intentionally minimal: set an API key if you need protection.
+    - The backend returns structured JSON so a frontend can render its own approval or feedback workflow.
+  </Tab>
+</Tabs>

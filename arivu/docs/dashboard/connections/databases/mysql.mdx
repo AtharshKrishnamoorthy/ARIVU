@@ -1,0 +1,39 @@
+---
+title: "MySQL"
+description: "Connect to MySQL for robust relational data storage and querying."
+---
+
+import { Callout, Steps, CardGroup, Card } from "mintlify/components";
+
+<img src="/images/mysql.png" alt="MySQL Integration" />
+
+## Overview
+
+MySQL is a widely used open-source relational database management system (RDBMS) known for its reliability and performance. Arivu provides seamless integrations so you can manage your enterprise data with minimal footprint.
+
+<CardGroup cols={2}>
+  <Card title="High Performance" icon="bolt">
+    Exceptional read and write speeds for web-scale applications.
+  </Card>
+  <Card title="Mature Ecosystem" icon="shield-check">
+    Massive ecosystem, standard SQL compliance, and strong community.
+  </Card>
+</CardGroup>
+
+## Configuration
+
+<Steps>
+  <Step title="Prerequisites">
+    Ensure you have your MySQL connection string ready (user, password, host, and database name).
+  </Step>
+  <Step title="Add Connection String">
+    Provide your keys in Arivu's configuration or `.env` file:
+    <CodeGroup>
+    ```bash .env
+    MYSQL_URI="mysql+pymysql://user:password@localhost:3306/db_name"
+    ```
+    </CodeGroup>
+  </Step>
+</Steps>
+
+<Note>Ensure the host is accessible from the environment where Arivu is hosted.</Note>

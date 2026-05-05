@@ -1,0 +1,25 @@
+---
+title: "Supported Models"
+description: "List of officially tested and supported LLMs"
+---
+
+While Arivu supports any model compatible with LangChain, the following have been strictly tested for SQL generation accuracy.
+
+## Top Tier (Recommended)
+
+| Provider | Model | Accuracy | Best For |
+| :--- | :--- | :--- | :--- |
+| **Anthropic** | `claude-3-5-sonnet` | 🟢 Excellent | Complex Joins & Reasoning |
+| **OpenAI** | `gpt-4o` | 🟢 Excellent | General Purpose |
+| **Google** | `gemini-1.5-pro` | 🟡 Great | Massive Schemas |
+
+## Performance Tier (Fast)
+
+| Provider | Model | Accuracy | Best For |
+| :--- | :--- | :--- | :--- |
+| **Groq** | `llama-3-70b` | 🟡 Great | Latency-sensitive apps |
+| **OpenAI** | `gpt-4o-mini` | 🟠 Good | Simple queries & Chitchat |
+
+<Note>
+  We recommend using **Claude 3.5 Sonnet** for the best experience with complex SQL dialect generation (e.g., Snowflake or BigQuery).
+</Note>

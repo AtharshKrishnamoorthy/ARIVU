@@ -1,7 +1,7 @@
 """
 arivu.integrations.rest
 ──────────────────────────────
-REST API integration for ARIVU.
+REST API integration for arivu.
 
 Exposes the pipeline as a clean HTTP API so any client (web app, CLI,
 custom bot) can query the database via NL without using Telegram or WhatsApp.
@@ -18,7 +18,7 @@ Usage:
     from arivu import Arivu
     from arivu.integrations.rest import RESTIntegration
 
-    db = ARIVU.connect(host=..., mode="user")
+    db = Arivu.connect(host=..., mode="user")
     api = RESTIntegration(db)
     api.start(host="0.0.0.0", port=8000)   # runs uvicorn
 

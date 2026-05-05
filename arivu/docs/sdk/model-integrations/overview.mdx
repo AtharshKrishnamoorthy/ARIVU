@@ -1,0 +1,32 @@
+---
+title: "Models Overview"
+description: "Flexible LLM routing in Arivu"
+---
+
+Arivu is model-agnostic. We use LangChain's `init_chat_model` utility to allow you to swap providers with zero code changes.
+
+## Configuration
+
+You can configure your model during SDK initialization or via environment variables.
+
+<CodeGroup>
+```python SDK Init
+from arivu import Arivu
+
+# Use Claude 3.5 Sonnet
+db = Arivu(model_provider="anthropic", model_name="claude-3-5-sonnet-latest")
+```
+
+```env Environment
+MODEL_PROVIDER=groq
+MODEL_NAME=llama3-70b-8192
+GROQ_API_KEY=gsk_...
+```
+</CodeGroup>
+
+## Provider Abstraction
+
+The `llm` module in Arivu handles:
+- **Credential Injection**: Automatically pulls keys from `.env`.
+- **System Prompting**: Injects schema context and SQL dialect rules.
+- **Error Handling**: Graceful fallbacks when providers are down.

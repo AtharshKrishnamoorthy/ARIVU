@@ -1,0 +1,39 @@
+---
+title: "RLHF and Human Feedback"
+description: "Continuous alignment from user sentiment."
+---
+
+<Frame>
+  <img src="/images/arivu-feedback.png" alt="RLHF Feedback" className="rounded-xl border border-gray-200 dark:border-gray-800" />
+</Frame>
+
+## Overview
+
+Reinforcement Learning from Human Feedback (RLHF) allows users to grade generation quality. Arivu natively captures thumb-ups/downs and descriptive feedback via chat integrations to shape prompt optimizations.
+
+<CardGroup cols={2}>
+  <Card title="Intent Rectification" icon="compass">
+    Locate queries where the LLM misunderstood user nuance and track corrections over time.
+  </Card>
+  <Card title="Approval Queues" icon="check-double">
+    Destructive queries (UPDATE/DELETE) are parked for admin consent before execution.
+  </Card>
+</CardGroup>
+
+## How It Works
+
+<Steps>
+  <Step title="Signal Capture">
+    Users provide feedback (positive/negative) via the chat UI, Telegram, or any integration adapter. The signal is attached to the query's trace record.
+  </Step>
+  <Step title="Storage">
+    RLHF signals persist in the memory backend (SQLite or Redis), indexed by `session_id` and `timestamp`.
+  </Step>
+  <Step title="Analysis">
+    The dashboard aggregates feedback trends, helping you identify which types of queries consistently generate poor results.
+  </Step>
+</Steps>
+
+<Info>
+  The `rlhf_feedback` LangGraph node executes entirely downstream of the `response_generator`. Injecting RLHF signals adds **zero blocking latency** to your conversational UX. 
+</Info>

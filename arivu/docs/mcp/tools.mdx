@@ -1,0 +1,34 @@
+---
+title: "Exposed MCP Tools"
+description: "A comprehensive breakdown of all capabilities exposed to connected MCP clients."
+---
+
+When an MCP client initializes a handshake with Arivu, it registers several modular capabilities directly accessible to the host LLM context layer.
+
+<CardGroup cols={2}>
+  <Card title="arivu_query" icon="magnifying-glass">
+    Executes natural language queries dynamically converting intent into safe SQL.
+  </Card>
+  <Card title="arivu_get_schema" icon="diagram-project">
+    Returns the structural table configurations and column contexts instantly.
+  </Card>
+</CardGroup>
+
+## The Tool Registry
+
+Here is the exact suite of tools transmitted during the initialization phase:
+
+### 1. Data Interactions
+*   `arivu_query(question: str)`: The core pipeline router. Parses a textual question, interfaces with LangGraph, and drops back a heavily verified answer.
+*   `arivu_get_session_history(session_id: str)`: Pulls prior conversation context for the designated thread from Arivu memory safely.
+
+### 2. Admin & Approvals
+If your configuration includes `ARIVU_DB_MODE="user"`, destructive executions will hit an approval queue. MCP clients can view and action these queues natively.
+*   `arivu_get_pending_approvals()`: Lists all operations globally waiting for admin authorization.
+*   `arivu_approve(session_id: str)`: Approves the pending SQL mapped to the session, forcing execution successfully.
+*   `arivu_reject(session_id: str)`: Hard rejects the destructive operation, reverting pipeline state.
+
+### 3. Diagnostics & Cache
+*   `arivu_refresh_schema()`: Triggers a hard re-extraction of backend SQL schema bypassing the set cache TTL. Use this when the underlying database is actively migrating.
+*   `arivu_test_connection()`: Provides an instantaneous health check verifying dialect networking availability.
+*   `arivu_list_dialects()`: Informs the host LLM regarding what dialects the current environment successfully installed (`pymysql`, `psycopg2`, etc).

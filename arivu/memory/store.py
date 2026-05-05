@@ -69,21 +69,36 @@ def save_interaction(
     sql: str,
     response: str,
     trace_events: list[dict],
+    dialect: str = "",
+    connection_meta: dict = None,
+    interface: str = "dashboard",
 ) -> None:
     """
     Persist a completed NL → SQL → response interaction.
     Called by memory_write_node at the end of every successful pipeline run.
     Also emits the trace events to the dashboard store.
     """
+    # Inject dialect metadata into trace events so traces carry context
+    enriched_events = list(trace_events)
+    if dialect or connection_meta:
+        enriched_events.insert(0, {
+            "node": "__meta__",
+            "status": "ok",
+            "latency_ms": 0,
+            "dialect": dialect,
+            "connection_meta": connection_meta or {},
+        })
     try:
         _get_backend().save_interaction(
             session_id=session_id,
             question=question,
             sql=sql,
             response=response,
-            trace_events=trace_events,
+            trace_events=enriched_events,
+            dialect=dialect,
+            interface=interface,
         )
-        logger.debug(f"[memory] interaction saved  session={session_id}")
+        logger.debug(f"[memory] interaction saved  session={session_id}  dialect={dialect}  interface={interface}")
     except Exception as exc:
         logger.warning(f"[memory] save_interaction failed: {exc}")
 
@@ -158,6 +173,8 @@ def save_rlhf_signal(
     sql: str,
     signal: str,
     approved: Optional[bool] = None,
+    dialect: str = "",
+    interface: str = "dashboard",
 ) -> None:
     """
     Persist an RLHF feedback signal.
@@ -173,6 +190,8 @@ def save_rlhf_signal(
             sql=sql,
             signal=signal,
             approved=approved,
+            dialect=dialect,
+            interface=interface,
         )
         logger.debug(f"[memory] RLHF signal saved  signal={signal}  session={session_id}")
     except Exception as exc:
@@ -215,6 +234,9 @@ def save_error_event(
     question: str,
     sql: str,
     trace_events: list[dict],
+    dialect: str = "",
+    connection_meta: dict = None,
+    interface: str = "dashboard",
 ) -> None:
     """
     Persist an error boundary event for the dashboard error log panel.
@@ -229,8 +251,11 @@ def save_error_event(
             question=question,
             sql=sql,
             trace_events=trace_events,
+            dialect=dialect,
+            connection_meta=connection_meta,
+            interface=interface,
         )
-        logger.debug(f"[memory] error event saved  node={error_node}  session={session_id}")
+        logger.debug(f"[memory] error event saved  node={error_node}  session={session_id}  dialect={dialect} interface={interface}")
     except Exception as exc:
         logger.warning(f"[memory] save_error_event failed: {exc}")
 
@@ -299,6 +324,22 @@ def get_session_list(limit: int = 50) -> list[dict]:
 # ─────────────────────────────────────────────────────────────────────────────
 # Configuration wrappers (KV store)
 # ─────────────────────────────────────────────────────────────────────────────
+
+def get_dashboard_stats() -> dict:
+    """
+    Fetch aggregate statistics for the dashboard efficiently.
+    Returns: {"total_sessions": int, "total_queries": int, "total_errors": int, "error_rate": float, "positive_rlhf": int, "negative_rlhf": int, "avg_latency_ms": float, "node_avg_latency": dict}
+    """
+    try:
+        return _get_backend().get_dashboard_stats()
+    except Exception as exc:
+        logger.warning(f"[memory] get_dashboard_stats failed: {exc}")
+        return {
+            "total_sessions": 0, "total_queries": 0, "total_errors": 0, 
+            "error_rate": 0.0, "positive_rlhf": 0, "negative_rlhf": 0,
+            "avg_latency_ms": 0.0, "node_avg_latency": {}
+        }
+
 
 def save_connections(connections: list[dict]) -> None:
     try:

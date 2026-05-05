@@ -3,7 +3,7 @@ arivu.memory
 ───────────────────
 Public API for the memory layer.
 
-    from ARIVU.memory import (
+    from arivu.memory import (
         load_session_history,
         save_interaction,
         save_rlhf_signal,

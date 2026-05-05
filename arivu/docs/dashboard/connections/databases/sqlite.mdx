@@ -1,0 +1,39 @@
+---
+title: "SQLite"
+description: "Use SQLite for lightweight, serverless local databases."
+---
+
+import { Callout, Steps, CardGroup, Card } from "mintlify/components";
+
+<img src="/images/sqlite.png" alt="SQLite Integration" />
+
+## Overview
+
+SQLite is a C-language library that implements a small, fast, self-contained, high-reliability, full-featured, SQL database engine. It is perfect for local testing and lightweight state storage.
+
+<CardGroup cols={2}>
+  <Card title="Zero Configuration" icon="gear">
+    No setup or administration needed.
+  </Card>
+  <Card title="Serverless" icon="computer">
+    Reads and writes directly to ordinary disk files.
+  </Card>
+</CardGroup>
+
+## Configuration
+
+<Steps>
+  <Step title="Find your Database Path">
+    Decide where your database file will live (e.g., `data/local.db`).
+  </Step>
+  <Step title="Configure">
+    Point Arivu to your database file:
+    <CodeGroup>
+    ```bash .env
+    SQLITE_PATH="sqlite:///data/local.db"
+    ```
+    </CodeGroup>
+  </Step>
+</Steps>
+
+<Warning>SQLite is heavily restricted in concurrent write access. It is not recommended for heavy multi-user production applications.</Warning>

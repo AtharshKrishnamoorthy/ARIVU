@@ -1,0 +1,39 @@
+---
+title: "MCP Server Overview"
+description: "Expose your databases directly to Claude Desktop and Cursor using the Model Context Protocol."
+---
+
+The **Model Context Protocol (MCP)** is an open standard that allows AI assistants (like Claude or agents in Cursor) to securely interact with local or remote external data sources.
+
+Arivu ships with a native, robust **FastMCP** server interface. It translates Arivu's sophisticated Text-to-SQL LangGraph pipeline into standardized tools that any MCP-compatible client can invoke.
+
+<CardGroup cols={2}>
+  <Card title="Universal Compatibility" icon="globe">
+    Plug into Claude Desktop, Cursor, Windows AI Studio, or any client supporting the MCP tool execution specification.
+  </Card>
+  <Card title="Zero-Config Agentic SQL" icon="wand-magic-sparkles">
+    The MCP client only needs to pass natural language. Arivu handles schema context, SQL generation, and validation automatically.
+  </Card>
+</CardGroup>
+
+## How It Works
+
+Traditional database MCP servers dump raw schemas and expect the LLM (like Claude) to write perfect SQL on the first try. 
+
+**Arivu's MCP is different.** 
+Instead of relying entirely on the client-side LLM to execute raw queries against your database, the Arivu MCP server forces the request through the internal Arivu Verifier nodes. It ensures syntax validity, runs destructive checks, and prevents schema hallucinations *before* the SQL is ever executed.
+
+<Steps>
+  <Step title="Client Request">
+    Claude Desktop requests `arivu_query(question="How many users signed up today?")`.
+  </Step>
+  <Step title="Arivu Pipeline Execution">
+    The MCP server routes "How many users signed up today?" into the Arivu Engine.
+  </Step>
+  <Step title="Validation & Execution">
+    Arivu generates, checks, fixes, and executes the SQL safely against your configured dialect (Postgres, Snowflake, etc.).
+  </Step>
+  <Step title="Client Response">
+    Arivu returns the finalized Natural Language answer and extracted rows back to Claude Desktop.
+  </Step>
+</Steps>

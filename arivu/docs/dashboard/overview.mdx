@@ -1,36 +1,48 @@
 ---
 title: "Dashboard Overview"
-description: "Visual observability for autonomous AI databases"
+description: "A high-level overview of the Arivu Dashboard"
 ---
-
-The Arivu Dashboard provides a no-code visual interface powered by a sleek dark-mode Next.js application. It is explicitly engineered to monitor your text-to-SQL data pipelines and evaluate Agentic Generation (LLM) traces.
 
 <img
-  className="block"
-  src="/images/arivu-monitoring-dash-dark.png"
-  alt="Arivu Dashboard Overview"
+  className="block dark:hidden"
+  src="/images/arivu-monitoring-dash.png"
+  alt="Dashboard Interface Light"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/arivu-monitoring-dash.png"
+  alt="Dashboard Interface Dark"
 />
 
-## Core Features
+## Welcome to the Dashboard
 
-### Universal Search & Filtering
-Easily command-line `ctrl+k` or traverse the global sidebar to access conversational latencies, SQL compilation traces, and historical memory caches across infinite project sessions. 
+The Arivu Dashboard is the primary interface for interacting with your AI agent. It is built using Next.js and Tailwind CSS, featuring a beautiful, highly responsive interface that automatically adapts to your system theme.
 
-### Multi-Database Management
-Manage active connection strings to `PostgreSQL`, `MySQL`, and `SQLite` seamlessly. Test connection health visually before invoking data pipelines.
+<Steps>
+  <Step title="Connect your Database">
+    Before asking questions, you need to connect your database. Head over to the Connections module to securely link PostgreSQL, MySQL, SQLite, and more.
+  </Step>
+  <Step title="Ask Questions">
+    Use the chat interface to ask natural language questions. The LangGraph agent will automatically write the SQL, execute it, and return the data.
+  </Step>
+  <Step title="Visualize Insights">
+    If the data returned is tabular, Arivu will automatically render interactive charts using the Thesys C1 Generative UI integration.
+  </Step>
+</Steps>
 
----
+## Key Sections
 
-### Local Deployment
-
-To run the dashboard locally for your internal team, invoke the web application from your root `arivu` engine directory:
-
-<CodeGroup>
-```bash Terminal
-cd dashboard/frontend
-npm install
-npm run dev
-```
-</CodeGroup>
-
-Your interactive dashboard will now be live on `http://localhost:3000`.
+<CardGroup cols={2}>
+  <Card title="Connections" icon="plug" href="/dashboard/connections/overview">
+    Add, remove, and manage your database and LLM credentials.
+  </Card>
+  <Card title="Chat Interface" icon="comments" href="/dashboard/connections/chat">
+    The main workspace for natural language analytics.
+  </Card>
+  <Card title="Pipeline Traces" icon="code-branch" href="/dashboard/monitoring/traces">
+    Inspect node-level execution latency and state diffs.
+  </Card>
+  <Card title="Session History" icon="clock-rotate-left" href="/dashboard/monitoring/sessions">
+    Review past conversations and replay queries.
+  </Card>
+</CardGroup>

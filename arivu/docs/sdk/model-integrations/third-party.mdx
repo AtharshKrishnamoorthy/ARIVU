@@ -1,0 +1,30 @@
+---
+title: "Third-Party & Local Models"
+description: "Bring your own LLM to Arivu"
+---
+
+Arivu allows you to integrate with self-hosted models or third-party providers not natively listed.
+
+## Using Ollama
+
+To use Arivu with local models running on **Ollama**:
+
+```python
+from arivu import Arivu
+from langchain_community.chat_models import ChatOllama
+
+# Initialize custom model
+local_llm = ChatOllama(model="codellama")
+
+# Inject into Arivu
+db = Arivu(custom_llm=local_llm)
+```
+
+## Using vLLM / LiteLLM
+
+If you are using a proxy service like **LiteLLM**, simply configure the `OPENAI_API_BASE` environment variable to point to your proxy endpoint.
+
+```env
+OPENAI_API_BASE="https://your-proxy.com/v1"
+OPENAI_API_KEY="your-key"
+```

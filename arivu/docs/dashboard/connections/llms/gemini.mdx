@@ -1,0 +1,40 @@
+---
+title: "Google Gemini"
+description: "Connect to Google Gemini for multimodal model support."
+---
+
+<Frame>
+  <img src="/images/gemini.png" alt="Google Gemini" />
+</Frame>
+
+## Overview
+
+Gemini is Google's most capable AI model series, seamlessly designed to be multimodal—understanding, operating across, and combining different types of information including text, code, audio, image, and video.
+
+<CardGroup cols={2}>
+  <Card title="Native Multimodality" icon="icons">
+    Process images, video, and text inherently without patched tools.
+  </Card>
+  <Card title="Massive Context" icon="arrows-left-right">
+    Gemini 1.5 Pro scales up to 1M or 2M context windows.
+  </Card>
+</CardGroup>
+
+## Configuration
+
+<Steps>
+  <Step title="Get your Developer Key">
+    Retrieve your key from [Google AI Studio](https://aistudio.google.com/).
+  </Step>
+  <Step title="Environment Variable">
+    Export your key locally or configure your host:
+    <CodeGroup>
+    ```bash .env
+    GEMINI_API_KEY="AIzaSy..."
+    DEFAULT_MODEL="gemini-1.5-pro"
+    ```
+    </CodeGroup>
+  </Step>
+</Steps>
+
+<Note>For enterprise applications, Arivu can also interact with Vertex AI configurations using standard `GOOGLE_APPLICATION_CREDENTIALS`.</Note>

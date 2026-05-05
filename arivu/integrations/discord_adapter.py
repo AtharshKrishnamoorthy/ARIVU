@@ -23,9 +23,9 @@ Setup:
 
 Usage:
     from arivu import Arivu
-    from ARIVU.integrations.discord_adapter import DiscordIntegration
+    from arivu.integrations.discord_adapter import DiscordIntegration
 
-    db = ARIVU.connect(host=..., mode="user")
+    db = Arivu.connect(host=..., mode="user")
     bot = DiscordIntegration(db, token="YOUR_TOKEN")
     bot.start()   # blocking
 
@@ -49,7 +49,7 @@ COMMAND_PREFIX = "!dh "      # fallback prefix for non-slash usage
 
 class DiscordIntegration(BaseIntegration):
     """
-    Discord adapter for ARIVU.
+    Discord adapter for arivu.
 
     Session identity: "discord:{user_id}"
     """

@@ -1,0 +1,127 @@
+---
+title: MCP Server
+description: Use Arivu as an MCP server for Claude Desktop, Cursor, and other MCP clients.
+---
+
+## Overview
+
+The **Model Context Protocol (MCP)** server lets any MCP-compatible client — Claude Desktop, Cursor, or your own integration — query databases through Arivu in plain English.
+
+The MCP server ships as a first-class sub-package inside the Arivu SDK:
+
+```bash
+pip install arivu-ai[mcp]
+```
+
+## Quick Start
+
+### stdio (local — Claude Desktop)
+
+```bash
+python -m arivu.mcp
+```
+
+### Streamable HTTP (remote — deployed server)
+
+```bash
+python -m arivu.mcp --transport http --port 8080 --host 0.0.0.0
+```
+
+## Claude Desktop Configuration
+
+Add this to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "arivu": {
+      "command": "python",
+      "args": ["-m", "arivu.mcp"],
+      "env": {
+        "ARIVU_DB_DIALECT": "postgresql",
+        "ARIVU_DB_HOST": "localhost",
+        "ARIVU_DB_PORT": "5432",
+        "ARIVU_DB_USER": "your_user",
+        "ARIVU_DB_PASSWORD": "your_password",
+        "ARIVU_DB_NAME": "your_database",
+        "ARIVU_DB_MODE": "user"
+      }
+    }
+  }
+}
+```
+
+## Available Tools
+
+The MCP server exposes 9 tools:
+
+| Tool | Description |
+|------|-------------|
+| `arivu_query` | Ask a natural language question, get a DB answer |
+| `arivu_approve` | Approve a pending destructive SQL operation |
+| `arivu_reject` | Reject a pending destructive SQL operation |
+| `arivu_refresh_schema` | Force re-extraction of database schema |
+| `arivu_get_schema` | View tables, columns, types, and foreign keys |
+| `arivu_test_connection` | Health check (ping, schema, query) |
+| `arivu_get_pending_approvals` | List queued destructive operations |
+| `arivu_get_session_history` | Retrieve past Q&A for a session |
+| `arivu_list_dialects` | Show available DB dialects and install status |
+
+## Environment Variables
+
+### Traditional RDBMS (PostgreSQL / MySQL)
+
+| Variable | Description |
+|----------|-------------|
+| `ARIVU_DB_DIALECT` | `postgresql` or `mysql` |
+| `ARIVU_DB_HOST` | Database host |
+| `ARIVU_DB_PORT` | Database port |
+| `ARIVU_DB_USER` | Username |
+| `ARIVU_DB_PASSWORD` | Password |
+| `ARIVU_DB_NAME` | Database name |
+| `ARIVU_DB_MODE` | `user` (read-only) or `admin` |
+
+### Snowflake
+
+| Variable | Description |
+|----------|-------------|
+| `ARIVU_DB_DIALECT` | `snowflake` |
+| `ARIVU_SNOWFLAKE_ACCOUNT` | Account identifier |
+| `ARIVU_SNOWFLAKE_WAREHOUSE` | Compute warehouse |
+| `ARIVU_DB_USER` | Snowflake username |
+| `ARIVU_DB_PASSWORD` | Snowflake password |
+| `ARIVU_DB_NAME` | Database name |
+
+### Databricks
+
+| Variable | Description |
+|----------|-------------|
+| `ARIVU_DB_DIALECT` | `databricks` |
+| `ARIVU_DB_HOST` | Workspace host |
+| `ARIVU_DATABRICKS_HTTP_PATH` | SQL warehouse HTTP path |
+| `ARIVU_DATABRICKS_TOKEN` | Personal access token |
+| `ARIVU_DATABRICKS_CATALOG` | Unity Catalog name |
+
+## Transports
+
+| Transport | Use Case | Command |
+|-----------|----------|---------|
+| **stdio** | Local clients (Claude Desktop, Cursor) | `python -m arivu.mcp` |
+| **Streamable HTTP** | Remote/deployed servers | `python -m arivu.mcp --transport http --port 8080` |
+
+## Console Script
+
+After installing `arivu-ai[mcp]`, you can also run the server via the installed console script:
+
+```bash
+arivu-mcp
+arivu-mcp --transport http --port 8080
+```
+
+<Note>
+The MCP server connects to the database once at startup and reuses the connection across all tool calls. Schema is automatically refreshed based on TTL.
+</Note>
+
+<Warning>
+For admin mode, destructive SQL operations (UPDATE, DELETE, DROP) require explicit approval via the `arivu_approve` tool. This provides a human-in-the-loop safety gate.
+</Warning>

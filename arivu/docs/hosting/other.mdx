@@ -1,0 +1,445 @@
+---
+title: "Other Hosting Platforms"
+description: "Deploy Arivu on DigitalOcean, Vercel, Heroku, and self-hosted solutions"
+---
+
+Beyond AWS and Azure, several other platforms offer excellent hosting for Arivu, each optimized for different use cases.
+
+## Platform Comparison
+
+| Platform | Best For | Ease | Cost | Scalability |
+|----------|----------|------|------|-------------|
+| **DigitalOcean App Platform** | Simplicity, transparency | Easy | $ | High |
+| **DigitalOcean Kubernetes** | K8s, scalability | Medium | $$ | Very High |
+| **Vercel** | Frontend only | Very Easy | $ | High |
+| **Heroku** | Quick deployment | Very Easy | $$ | Medium |
+| **Railway** | Modern deployments | Easy | $ | High |
+| **Render** | Full-stack apps | Easy | $ | High |
+| **Self-Hosted (VPS)** | Control, cost | Hard | $ | Low |
+| **Self-Hosted (Docker)** | Control, flexibility | Hard | $ | Medium |
+
+## DigitalOcean App Platform (Recommended)
+
+<Tabs>
+  <Tab title="Architecture">
+    - **Frontend**: Static site on CDN
+    - **Backend**: Containerized service
+    - **Database**: Managed PostgreSQL
+    - **Cache**: Redis cluster
+    - **Storage**: Spaces (S3-compatible)
+  </Tab>
+  
+  <Tab title="Pricing">
+    - Backend service: $12/month
+    - Database (basic): $15/month
+    - Redis: $15/month
+    - **Total**: ~$42/month
+  </Tab>
+</Tabs>
+
+### Deployment Steps
+
+<Steps>
+  <Step title="1. Set Up DigitalOcean Account">
+    - Create account at digitalocean.com
+    - Add payment method
+    - Create API token
+  </Step>
+  
+  <Step title="2. Create Managed PostgreSQL">
+    ```bash
+    # Via DigitalOcean CLI
+    doctl databases create arivu-db \
+      --engine pg \
+      --region nyc3 \
+      --num-nodes 1
+    ```
+  </Step>
+  
+  <Step title="3. Create Redis Cluster">
+    ```bash
+    doctl databases create arivu-redis \
+      --engine redis \
+      --region nyc3 \
+      --num-nodes 1
+    ```
+  </Step>
+  
+  <Step title="4. Create Container Registry">
+    Push Docker images to DigitalOcean:
+    
+    ```bash
+    # Login to registry
+    doctl registry login
+    
+    # Tag and push image
+    docker tag arivu-backend:latest registry.digitalocean.com/arivu/arivu-backend:latest
+    docker push registry.digitalocean.com/arivu/arivu-backend:latest
+    ```
+  </Step>
+  
+  <Step title="5. Deploy via App Platform">
+    Create `app.yaml`:
+    ```yaml
+    name: arivu
+    services:
+    - name: backend
+      github:
+        branch: main
+        repo: your-org/arivu
+      build_command: "pip install -r requirements.txt"
+      run_command: "uvicorn arivu.dashboard.backend._app:app --host 0.0.0.0 --port 8080"
+      health_check:
+        http_path: /api/health
+      http_port: 8080
+      source_dir: ./
+      envs:
+      - key: MEMORY_BACKEND
+        value: redis
+      - key: DATABASE_URL
+        scope: RUN_AND_BUILD_TIME
+        value: ${db.connection_string}
+    
+    - name: frontend
+      source_dir: ./arivu/dashboard/frontend
+      build_command: "npm run build"
+      run_command: "npm run start"
+      http_port: 3000
+      evn ums:
+      - key: API_URL
+        value: https://${backend.ingress.host}
+    
+    databases:
+    - name: db
+      engine: PG
+      version: "14"
+    
+    - name: redis
+      engine: REDIS
+      version: "7"
+    ```
+    
+    Deploy:
+    ```bash
+    doctl apps create --spec app.yaml
+    ```
+  </Step>
+</Steps>
+
+## Vercel (Frontend Only)
+
+Perfect for deploying the Next.js frontend to a global CDN.
+
+<Steps>
+  <Step title="Deploy Frontend">
+    ```bash
+    npm install -g vercel
+    cd arivu/dashboard/frontend
+    vercel
+    ```
+  </Step>
+  
+  <Step title="Configure Environment">
+    In Vercel dashboard:
+    - Add `NEXT_PUBLIC_API_URL` pointing to your backend
+    - Enable preview deployments
+    - Set up automatic deployments from Git
+  </Step>
+  
+  <Step title="Deploy Backend Separately">
+    Backend runs on DigitalOcean/Heroku/Railway
+    Frontend proxies API calls to it
+  </Step>
+</Steps>
+
+**Cost**: Free tier available, $20/month for Pro includes analytics
+
+## Heroku (Rapid Prototyping)
+
+<Tabs>
+  <Tab title="Backend Deployment">
+    ```yaml
+    # Procfile
+    web: gunicorn arivu.dashboard.backend._app:app --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
+    ```
+    
+    ```bash
+    # Deploy
+    heroku login
+    heroku create arivu-backend
+    git push heroku main
+    ```
+  </Tab>
+  
+  <Tab title="Environment Variables">
+    ```bash
+    heroku config:set DATABASE_URL="postgresql://..."
+    heroku config:set REDIS_URL="redis://..."
+    heroku config:set OPENAI_API_KEY="sk-..."
+    ```
+  </Tab>
+  
+  <Tab title="Cost">
+    - Free tier: Limited but available
+    - Hobby: $7/month per dyno
+    - Managed PostgreSQL: $9+/month
+    - **Total**: ~$25-30/month
+  </Tab>
+</Tabs>
+
+<Warning>Heroku free tier is being phased out. Use paid plans or alternatives like Railway/Render.</Warning>
+
+## Railway (Modern Alternative)
+
+Modern, Git-native deployment platform.
+
+```bash
+# Install Railway CLI
+npm i -g @railway/cli
+
+# Login
+railway login
+
+# Initialize project
+railway init
+
+# Configure services in railway.json
+# Deploy
+railway up
+```
+
+**Cost**: Pay-per-use, typically $5-15/month
+
+## Render (Full-Stack)
+
+Similar to Railway with focus on simplicity.
+
+```yaml
+services:
+  - type: web
+    name: arivu-backend
+    repo: https://github.com/your-org/arivu
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn arivu.dashboard.backend._app:app --host 0.0.0.0
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: arivu-db
+          property: connectionString
+  
+  - type: web
+    name: arivu-frontend
+    repo: https://github.com/your-org/arivu
+    branch: main
+    buildCommand: "cd arivu/dashboard/frontend && npm install && npm run build"
+    startCommand: "cd arivu/dashboard/frontend && npm run start"
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://arivu-backend.onrender.com
+
+databases:
+  - name: arivu-db
+    databaseName: arivu
+    user: pguser
+```
+
+**Cost**: $7/month per service + database
+
+## Self-Hosted VPS
+
+For maximum control, deploy on a virtual private server.
+
+<Tabs>
+  <Tab title="DigitalOcean Droplet">
+    ```bash
+    # Create 2GB Droplet
+    doctl compute droplet create arivu \
+      --region nyc3 \
+      --image ubuntu-22-04-x64 \
+      --size s-1vcpu-2gb
+    
+    # SSH into droplet
+    ssh root@droplet_ip
+    
+    # Install dependencies
+    apt-get update && apt-get install -y \
+      python3.10 python3-pip postgresql redis-server nginx docker.io
+    
+    # Clone repo
+    git clone https://github.com/your-org/arivu.git
+    cd arivu
+    
+    # Install Python deps
+    pip install -r requirements.txt
+    
+    # Start backend with systemd
+    sudo systemctl start arivu-backend
+    
+    # Configure Nginx as reverse proxy
+    ```
+  </Tab>
+  
+  <Tab title="Linode">
+    Similar process on Linode infrastructure
+    - Simpler billing
+    - Good support
+    - Comparable pricing to DigitalOcean
+  </Tab>
+  
+  <Tab title="Hetzner">
+    Budget-friendly European hosting
+    - €3-5/month for basic VPS
+    - Good performance
+    - Simple management
+  </Tab>
+</Tabs>
+
+**Cost**: $5-10/month VPS + $5-15/month database
+
+## Docker Compose (Local/Self-Hosted)
+
+Deploy entire stack locally or on a server with Docker:
+
+```yaml
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: arivu
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  backend:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/arivu
+      REDIS_URL: redis://redis:6379/0
+      MEMORY_BACKEND: redis
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - redis
+    command: uvicorn arivu.dashboard.backend._app:app --host 0.0.0.0 --port 8000
+
+  frontend:
+    build:
+      context: ./arivu/dashboard/frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - backend
+      - frontend
+
+volumes:
+  postgres_data:
+```
+
+Deploy:
+```bash
+docker-compose up -d
+```
+
+## Comparison Matrix
+
+<Columns cols={2}>
+  <Card title="Easiest" icon="zap">
+    - Vercel (frontend only)
+    - Heroku
+    - Render
+  </Card>
+  
+  <Card title="Most Control" icon="sliders">
+    - Self-hosted VPS
+    - Docker Compose
+    - Kubernetes (any provider)
+  </Card>
+</Columns>
+
+## Cost Optimization Tips
+
+<AccordionGroup>
+  <Accordion title="Choose the right tier" defaultOpen icon="dollar-sign">
+    - Start small, scale as needed
+    - Use free tiers for development/staging
+    - Budget for production ($40-150/month)
+  </Accordion>
+  
+  <Accordion title="Combine services optimally" icon="layers">
+    - Frontend: Vercel (free) or Render ($7)
+    - Backend: DigitalOcean ($12) or Railway ($10)
+    - Database: Managed service ($5-15)
+    - **Total**: $22-40/month
+  </Accordion>
+  
+  <Accordion title="Use spot/preemptible instances" icon="trending-down">
+    - DigitalOcean App Specs: Auto-scaling included
+    - AWS Spot Instances: 70% cheaper but can be interrupted
+    - GCP Preemptible: Similar to AWS Spot
+  </Accordion>
+  
+  <Accordion title="Optimize data transfer" icon="network">
+    - Use CDN for static assets
+    - Cache API responses with Redis
+    - Compress responses with gzip
+  </Accordion>
+</AccordionGroup>
+
+## Recommended Combinations
+
+<Tabs>
+  <Tab title="Startup (Minimal Budget)">
+    - Frontend: Vercel (free)
+    - Backend: Railway ($5-10)
+    - Database: Railway managed ($0-5)
+    - **Total**: $5-15/month
+  </Tab>
+  
+  <Tab title="Small Business">
+    - Frontend: Vercel Pro ($20)
+    - Backend: DigitalOcean ($12)
+    - Database: DigitalOcean ($15)
+    - Cache: DigitalOcean Redis ($15)
+    - **Total**: $62/month
+  </Tab>
+  
+  <Tab title="Enterprise">
+    - Frontend: Vercel Enterprise
+    - Backend: AWS ECS Fargate ($50+)
+    - Database: AWS RDS ($30+)
+    - Cache: AWS ElastiCache ($20+)
+    - Monitoring: DataDog/New Relic ($30+)
+    - **Total**: $150-300/month
+  </Tab>
+</Tabs>
+
+## Next Steps
+
+1. **Choose your platform**: Based on comfort level and budget
+2. **Test locally**: Use Docker Compose first
+3. **Set up staging**: Mirror production setup
+4. **Plan backups**: Critical for production data
+5. **Monitor costs**: Set spending alerts

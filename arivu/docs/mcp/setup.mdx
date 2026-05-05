@@ -1,0 +1,85 @@
+---
+title: "MCP Environment Setup"
+description: "Install dependencies and configure database parameters for the Arivu MCP Server."
+---
+
+## Installation
+
+The Arivu MCP server requires the `mcp` optional dependency map. 
+
+<CodeGroup>
+```bash terminal
+pip install "arivu-ai[mcp]"
+```
+</CodeGroup>
+
+<Info>
+  The MCP server runs globally within your Python environment. For best results, install it within the same virtual environment where you intend to launch Claude Desktop or Cursor.
+</Info>
+
+## Global Configuration
+
+The Arivu MCP Server does not take arguments programmatically; instead, it binds to **Environment Variables** securely passed in by the parent MCP client.
+
+### Core Variables
+
+<CodeGroup>
+```env .env
+# Common configuration applied across all dialects
+ARIVU_DB_DIALECT="postgresql" # postgresql, mysql, sqlite, databricks, snowflake
+ARIVU_DB_MODE="user"          # Safety guardrail (admin bypasses approval restrictions)
+```
+</CodeGroup>
+
+### Dialect-Specific Configurations
+
+<Tabs>
+  <Tab title="PostgreSQL / MySQL">
+    Standard RDBMS parameters:
+    ```env
+    ARIVU_DB_HOST="localhost"
+    ARIVU_DB_PORT="5432"
+    ARIVU_DB_USER="postgres"
+    ARIVU_DB_PASSWORD="supersecretpassword"
+    ARIVU_DB_NAME="analytics"
+    ```
+  </Tab>
+  <Tab title="Snowflake">
+    Requires warehouse routing context:
+    ```env
+    ARIVU_SNOWFLAKE_ACCOUNT="xy12345.us-east-1"
+    ARIVU_SNOWFLAKE_WAREHOUSE="COMPUTE_WH"
+    ARIVU_DB_USER="admin"
+    ARIVU_DB_PASSWORD="mypassword"
+    ARIVU_DB_NAME="SNOW_DATA"
+    ```
+  </Tab>
+  <Tab title="Databricks">
+    Requires Databricks catalog tracking:
+    ```env
+    ARIVU_DB_HOST="adb-123.azuredatabricks.net"
+    ARIVU_DATABRICKS_HTTP_PATH="/sql/1.0/endpoints/abc123"
+    ARIVU_DATABRICKS_TOKEN="dapi..."
+    ARIVU_DATABRICKS_CATALOG="main"
+    ```
+  </Tab>
+</Tabs>
+
+## Server Boot Modes
+
+Arivu supports both standard execution layers as outlined in the MCP specification.
+
+<Steps>
+  <Step title="Stdio Transport (Local)">
+    Standard mechanism for desktop integrations like Cursor. It reads inputs on `stdin` and writes on `stdout`.
+    ```bash
+    python -m arivu.mcp
+    ```
+  </Step>
+  <Step title="SSE HTTP Transport (Remote)">
+    Used if you are hosting the MCP Server exclusively on a remote VPC droplet.
+    ```bash
+    python -m arivu.mcp --transport http --port 8080
+    ```
+  </Step>
+</Steps>

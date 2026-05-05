@@ -1,0 +1,27 @@
+---
+title: "Gemini SDK"
+description: "Initialize the Arivu pipeline using Gemini as the routing engine."
+---
+
+## Integration
+
+You can assign Gemini as your generation engine either by passing kwargs into the connection object or through environment variables.
+
+<CodeGroup>
+```python python
+import os
+from arivu import Arivu
+
+os.environ["GEMINI_API_KEY"] = "..."
+
+db = Arivu.connect(
+    # DB arguments...
+    llm_provider="gemini",
+    model="gemini-1.5-pro-latest"
+)
+```
+</CodeGroup>
+
+<Note>
+  Ensure your `arivu-ai[llm]` optional dependencies are installed via `pip install arivu-ai[gemini]` if necessary.
+</Note>

@@ -36,22 +36,18 @@ from ..connection.auth import mode_permits, is_destructive
 logger = logging.getLogger("arivu.pipeline")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Shared LLM helper (lazy-loaded so import doesn't require API key at startup)
+# Shared LLM helper (uses the arivu.llm multi-provider abstraction layer)
 # ─────────────────────────────────────────────────────────────────────────────
 
-_llm = None
-
 def _get_llm():
-    global _llm
-    if _llm is None:
-        from langchain_groq import ChatGroq
-        import os
-        _llm = ChatGroq(
-            model="openai/gpt-oss-120b",
-            temperature=0,
-            api_key="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"
-        )
-    return _llm
+    """
+    Return the configured LLM provider instance.
+    Uses the arivu.llm.get_llm() factory which reads from:
+      - Dashboard-saved config (memory store)
+      - ARIVU_LLM_PROVIDER / ARIVU_LLM_MODEL env vars
+    """
+    from ..llm import get_llm
+    return get_llm()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -430,10 +426,17 @@ def response_generator_node(state: GraphState) -> GraphState:
 
     try:
         llm = _get_llm()
+        
+        # Architecture Bypass Mapping: if we skipped embedding due to small results,
+        # fallback to passing the raw rows directly as context payload strings.
+        effective_chunks = state.retrieved_chunks
+        if not effective_chunks and state.raw_result:
+            effective_chunks = [str(row) for row in state.raw_result]
+
         prompt = _build_response_prompt(
             question=state.question,
             sql=state.sql,
-            chunks=state.retrieved_chunks,
+            chunks=effective_chunks,
         )
         state.response = llm.invoke(prompt).content.strip()
         state.record_trace(
@@ -468,6 +471,9 @@ def memory_write_node(state: GraphState) -> GraphState:
             sql=state.sql,
             response=state.response,
             trace_events=state.trace_events,
+            dialect=state.dialect,
+            connection_meta=state.connection_meta,
+            interface=state.interface,
         )
         state.record_trace("memory_write", "ok", _ms(t0))
 
@@ -508,6 +514,8 @@ def rlhf_feedback_node(state: GraphState) -> GraphState:
             sql=state.sql,
             signal=state.rlhf_signal,
             approved=state.approved,
+            dialect=state.dialect,
+            interface=state.interface,
         )
         state.record_trace(
             "rlhf_feedback", "ok", _ms(t0),
@@ -571,6 +579,9 @@ def error_boundary_node(state: GraphState) -> GraphState:
             question=state.original_question or state.question,
             sql=state.sql,
             trace_events=state.trace_events,
+            dialect=state.dialect,
+            connection_meta=state.connection_meta,
+            interface=state.interface,
         )
     except Exception as exc:
         logger.warning(f"[error_boundary] failed to persist error event: {exc}")

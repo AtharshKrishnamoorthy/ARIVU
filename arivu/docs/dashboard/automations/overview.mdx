@@ -1,0 +1,247 @@
+---
+title: "Scheduled Automations"
+description: "Run queries on a recurring schedule with automated actions."
+---
+
+import { Callout, Steps, CardGroup, Card } from "mintlify/components";
+
+<img src="/images/automation-dash.png" alt="Automations Dashboard" />
+
+## Overview
+
+Scheduled Automations allow you to run natural language queries automatically at specified intervals, with results delivered to your configured action endpoints. Perfect for generating recurring reports, monitoring dashboards, and automated data workflows.
+
+### Key Features
+
+<CardGroup cols={2}>
+  <Card title="Cron-Based Scheduling" icon="clock">
+    Flexible scheduling with standard cron expressions for precise timing.
+  </Card>
+  <Card title="Natural Language Queries" icon="wand-magic-sparkles">
+    Convert natural language into automated SQL execution via the pipeline.
+  </Card>
+  <Card title="Multiple Actions" icon="webhook">
+    Route results to logs, email, or webhooks automatically.
+  </Card>
+  <Card title="Execution History" icon="history">
+    Track all automation runs with timestamps, status, and error logs.
+  </Card>
+  <Card title="Live Monitoring" icon="activity">
+    Real-time logs and run history for each automation.
+  </Card>
+  <Card title="Enable/Disable Toggle" icon="power">
+    Pause automations without deleting them.
+  </Card>
+</CardGroup>
+
+
+
+## Creating an Automation
+
+<Steps>
+  <Step title="Configure Email (optional)">
+    If you plan to deliver results via **Email**, configure SMTP settings first in Settings → [Email Configuration](/dashboard/settings) and run a test email.
+
+    <img src="/images/arivu-settings-mail-config.png" alt="Automations Dashboard" />
+
+  </Step>
+
+  <Step title="Navigate to Automations">
+    From the Dashboard sidebar, click **Automations**.
+  </Step>
+  
+  <Step title="Click Create">
+    Click the **Create** button in the top right corner.
+  </Step>
+  
+  <Step title="Enter Details">
+    - **Name**: A descriptive name for your automation (e.g., "Daily Sales Report")
+    - **Query**: Natural language description of what to query (e.g., "Show me total sales by region for the last 7 days")
+  </Step>
+  
+  <Step title="Set Schedule">
+    Select a preset schedule or enter a custom cron expression:
+    - **Every hour**: `0 * * * *`
+    - **Daily at 9 AM**: `0 9 * * *`
+    - **Every Monday at 9 AM**: `0 9 * * 1`
+    - **Custom**: Enter 5-part cron format
+  </Step>
+  
+  <Step title="Choose Action">
+    Select where results are delivered:
+    - **Log**: Stored in automation history
+    - **Email**: Sent to configured recipient
+    - **Webhook**: POSTed to external endpoint
+  </Step>
+  
+  <Step title="Save">
+    Click **Create** to save and activate the automation.
+  </Step>
+</Steps>
+
+## Managing Automations
+
+### View Automation Details
+
+Click on any automation card to open its detail page with:
+- **Schedule Details**: Cron expression, action type, status
+- **Run History**: Timestamps, duration, status for each execution
+- **Live Logs**: Real-time execution logs when you click "Run Now"
+
+<img src="/images/automation-page.png" alt="Automations Dashboard" />
+
+### Run Now
+
+Manually trigger an automation immediately:
+1. Open the automation detail page
+2. Click the **Play** button (▶) at the top
+3. Watch live logs stream in real-time
+4. Results appear in Run History
+
+### Pause/Resume
+
+Toggle an automation on/off without deleting:
+1. Click the **Pause** (⏸) or **Play** (▶) button on the card
+2. Automation will stop running on schedule until resumed
+
+### Edit or Delete
+
+- **Edit**: (Coming soon) Modify automation schedule, query, or action
+- **Delete**: Click the trash icon to permanently remove (no undo)
+
+## Action Types
+
+<CardGroup cols={3}>
+  <Card title="Log" icon="book">
+    Results stored in automation history visible in the dashboard. Best for monitoring and analysis.
+  </Card>
+  
+  <Card title="Email" icon="envelope">
+    Results formatted and emailed to configured recipients. Requires SMTP settings.
+  </Card>
+  
+  <Card title="Webhook" icon="webhook">
+    Results POSTed to external endpoint as JSON. Integrate with external tools and APIs.
+  </Card>
+</CardGroup>
+
+## Scheduling Guide
+
+### Common Cron Patterns
+
+| Description | Cron Expression | Explanation |
+|---|---|---|
+| Every hour | `0 * * * *` | At minute 0 of every hour |
+| Every 6 hours | `0 */6 * * *` | At midnight, 6 AM, 12 PM, 6 PM |
+| Daily at 9 AM | `0 9 * * *` | 09:00 every day |
+| Daily at midnight | `0 0 * * *` | 00:00 every day |
+| Weekly (Monday 9 AM) | `0 9 * * 1` | 09:00 every Monday |
+| Weekdays 9 AM | `0 9 * * 1-5` | 09:00 Mon-Fri |
+| First of month 9 AM | `0 9 1 * *` | 09:00 on the 1st |
+| Every 15 minutes | `*/15 * * * *` | At :00, :15, :30, :45 |
+
+<Callout type="info">
+Cron format: `minute hour day month day-of-week`. See [crontab.guru](https://crontab.guru) for an interactive editor.
+</Callout>
+
+## Error Handling
+
+Automations include built-in error management:
+
+- **Failed Query Execution**: Logged with error message, automation continues on next schedule
+- **Email Delivery Failure**: Retried automatically, visible in logs
+- **Webhook Timeout**: Logged and retried based on configuration
+- **Data Processing Error**: Full stack trace captured in Run History
+
+Check the **Run History** card for details on any failed executions.
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Name Clearly" icon="tag">
+    Use descriptive names that indicate the automation's purpose and frequency.
+  </Card>
+  
+  <Card title="Test Before Scheduling" icon="flask">
+    Use "Run Now" to test queries before setting up recurring execution.
+  </Card>
+  
+  <Card title="Monitor Results" icon="chart-line">
+    Check Run History regularly to ensure automations are executing as expected.
+  </Card>
+  
+  <Card title="Avoid Peak Hours" icon="hourglass">
+    Schedule resource-intensive queries during off-peak times.
+  </Card>
+  
+  <Card title="Document Queries" icon="scroll">
+    Use clear, specific natural language in query descriptions for future reference.
+  </Card>
+  
+  <Card title="Backup Results" icon="copy">
+    For critical automations, export results regularly as backup.
+  </Card>
+</CardGroup>
+
+## Limitations
+
+- Maximum 100 concurrent automations per instance
+- Queries must complete within 5 minutes
+- Email actions require SMTP configuration
+- Webhooks have 30-second timeout
+- Run history retained for 90 days
+
+## Troubleshooting
+
+### Automation Not Running
+
+<Steps>
+  <Step title="Check Status">
+    Ensure the automation shows the green "Active" badge.
+  </Step>
+  <Step title="Verify Schedule">
+    Confirm the cron expression matches your intended frequency.
+  </Step>
+  <Step title="Check Database Connection">
+    Verify the active connection is still valid in your session.
+  </Step>
+  <Step title="Review Logs">
+    Open the automation detail page and check Run History for error messages.
+  </Step>
+</Steps>
+
+### Query Execution Failed
+
+<Steps>
+  <Step title="Test Manually">
+    Use "Run Now" to see the exact error in live logs.
+  </Step>
+  <Step title="Refine Query">
+    If the natural language query is ambiguous, be more specific.
+  </Step>
+  <Step title="Validate Data">
+    Ensure required tables and columns exist in your database.
+  </Step>
+</Steps>
+
+### Email Not Received
+
+<Steps>
+  <Step title="Configure SMTP">
+    Go to Settings → Email Configuration and test your SMTP settings.
+  </Step>
+  <Step title="Check Logs">
+    Look for "Email delivery failed" messages in Run History.
+  </Step>
+  <Step title="Verify Recipients">
+    Confirm the email address is correctly configured.
+  </Step>
+</Steps>
+
+---
+
+## Next Steps
+
+- [Explore Dashboard Integration](/dashboard/dashboards/overview)
+- [Set Up Email Configuration](/dashboard/settings)
+- [Monitor Execution with Traces](/dashboard/monitoring/traces)

@@ -1,0 +1,69 @@
+---
+title: "Client Integrations"
+description: "Connect Arivu seamlessly with Claude Desktop, Cursor, and Windsurf."
+---
+
+Integrating Arivu directly via JSON configuration files bridges context gaps directly inside your everyday tooling workspace seamlessly.
+
+## Claude Desktop Configuration
+
+Claude Desktop supports dynamic injection of Stdio MCP nodes securely. 
+
+1. Ensure `claude_desktop_config.json` exists.
+   * **Mac**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+   * **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+2. Populate tracking config:
+
+<CodeGroup>
+```json claude_desktop_config.json
+{
+  "mcpServers": {
+    "arivu-database": {
+      "command": "python",
+      "args": ["-m", "arivu.mcp"],
+      "env": {
+        "ARIVU_DB_DIALECT": "postgresql",
+        "ARIVU_DB_HOST": "localhost",
+        "ARIVU_DB_PORT": "5432",
+        "ARIVU_DB_USER": "admin",
+        "ARIVU_DB_PASSWORD": "secure_pass",
+        "ARIVU_DB_NAME": "primary_db",
+        "ARIVU_DB_MODE": "user"
+      }
+    }
+  }
+}
+```
+</CodeGroup>
+
+3. **Restart Claude Desktop**. You will notice a new hammer icon containing the toolsets within the prompt dialog.
+
+---
+
+## Cursor Integration
+
+Integrating Arivu into Cursor enables your IDE agent to ask questions about your live production metrics while editing corresponding application code simultaneously.
+
+<Steps>
+  <Step title="Open Cursor Settings">
+    Navigate down to **Feature Settings** and subsequently click on **MCP**.
+  </Step>
+  <Step title="Add Server">
+    Select **+ Add New MCP Server**. 
+  </Step>
+  <Step title="Configure Environment">
+    * **Type**: `command`
+    * **Name**: `Arivu`
+    * **Command**: 
+    
+    *For Windows/MacOS (Modify paths contextually)*:
+    ```bash
+    ARIVU_DB_DIALECT=sqlite ARIVU_DB_NAME=demo.db python -m arivu.mcp
+    ```
+  </Step>
+</Steps>
+
+<Info>
+  Your AI assistant within Cursor will now flawlessly recognize commands such as *"Query the Arivu database schema and help me write an ORM class for the latest user definition."*
+</Info>

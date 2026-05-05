@@ -1,0 +1,40 @@
+---
+title: "Groq"
+description: "Leverage Groq's LPU inference engine for blisteringly fast responses."
+---
+
+<Frame>
+  <img src="/images/groq.png" alt="Groq" />
+</Frame>
+
+## Overview
+
+Groq operates using an LPU™ (Language Processing Unit) architecture, specifically engineered to deliver real-time AI capabilities with latency far below traditional GPU deployments.
+
+<CardGroup cols={2}>
+  <Card title="Unmatched Speed" icon="rocket">
+    Hundreds of tokens per second for popular models like Llama 3.
+  </Card>
+  <Card title="Open Source Models" icon="code-branch">
+    First-class support for Llama, Mixtral, and Gemma model variants.
+  </Card>
+</CardGroup>
+
+## Configuration
+
+<Steps>
+  <Step title="Get your API Key">
+    Sign up on the [GroqCloud Console](https://console.groq.com/).
+  </Step>
+  <Step title="Environment Settings">
+    Add the credentials to your environment:
+    <CodeGroup>
+    ```bash .env
+    GROQ_API_KEY="gsk_..."
+    DEFAULT_MODEL="llama3-70b-8192"
+    ```
+    </CodeGroup>
+  </Step>
+</Steps>
+
+<Info>Because of Groq's incredible generation speed, it is highly recommended for streaming applications (e.g. voice or real-time chatbots).</Info>

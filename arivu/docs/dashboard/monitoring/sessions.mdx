@@ -1,0 +1,35 @@
+---
+title: "Sessions and Chat History"
+description: "Deep visibility into user conversations and Arivu session states."
+---
+
+<Frame>
+  <img src="/images/arivu-sessions.png" alt="Sessions" className="rounded-xl border border-gray-200 dark:border-gray-800" />
+</Frame>
+
+## Overview
+
+The Sessions tab aggregates all multi-turn conversations occurring across your integrated channels. It groups requests by `session_id`, making it effortless to trace user intent continuously over time.
+
+<CardGroup cols={2}>
+  <Card title="Thread Isolation" icon="server">
+    Maintains isolated conversational context. No cross-contamination between users.
+  </Card>
+  <Card title="Historical Replay" icon="clock-rotate-left">
+    Review exact payloads received from Slack, Discord, Telegram, or WhatsApp.
+  </Card>
+</CardGroup>
+
+## Session Details
+
+<Frame>
+  <img src="/images/arivu-sessions-side.png" alt="Session Sidebar" className="rounded-xl border border-gray-200 dark:border-gray-800" />
+</Frame>
+
+Click on any session row to open the **Session Drawer**, which shows:
+- Full conversation history (question + SQL + response)
+- Timestamps and latency metrics for each interaction
+- RLHF signals attached to the session
+- The database connection used
+
+<Tip>Use the search bar to filter sessions by keyword, date range, or integration channel.</Tip>

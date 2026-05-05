@@ -1,0 +1,79 @@
+---
+title: "Pipeline"
+description: "Core concepts surrounding Arivu's LangGraph compiled nodes."
+---
+
+Arivu's intelligent query resolving utilizes a sophisticated LangGraph pipeline that abstracts schema ingestion, LLM execution, error verification, and memory logging. The system is designed for granular observability and deterministic human feedback.
+
+<Info>The pipeline is the core engine that transforms natural language into secure, verified SQL operations.</Info>
+
+## Pipeline Lifecycle
+
+<Steps>
+  <Step title="Query Intake" icon="input">
+    Capture raw user intent with metadata context (database engines, session memory, user context).
+  </Step>
+
+  <Step title="SQL Generation" icon="code">
+    Convert the parsed intent using LLMs with knowledge of exact relational schemas.
+  </Step>
+
+  <Step title="Verification" icon="shield-check">
+    Evaluate generated SQL for:
+    - **Syntax validity** - Is the SQL correct?
+    - **Safety checks** - Blocks destructive operations (DROP, DELETE, etc.)
+    - **Schema validation** - Prevents hallucinated columns/tables
+  </Step>
+
+  <Step title="Execution & Memory" icon="database">
+    Execute approved queries and sync results to the internal memory system for session context.
+  </Step>
+</Steps>
+
+## Graph Inspection
+
+Arivu compiles the pipeline into a LangGraph for transparent execution tracking. Inspect it locally:
+
+<CodeGroup>
+```python inspect_graph.py
+from arivu.pipeline import get_compiled_graph
+
+graph = get_compiled_graph()
+
+# Print ASCII visualization
+print(graph.get_graph().draw_ascii())
+
+# Export as Mermaid diagram
+print(graph.get_graph().draw_mermaid())
+```
+</CodeGroup>
+
+## Key Concepts
+
+<AccordionGroup>
+  <Accordion title="State Management" defaultOpen icon="layers">
+    The pipeline maintains a shared state dictionary that flows through each node:
+    - User query and session context
+    - Generated SQL candidates
+    - Verification results
+    - Final response and metadata
+  </Accordion>
+  
+  <Accordion title="Error Handling" icon="alert-circle">
+    When verification fails, the pipeline:
+    1. Captures the error
+    2. Provides feedback to the LLM
+    3. Automatically attempts correction
+    4. Re-verifies the corrected SQL
+  </Accordion>
+  
+  <Accordion title="Observability" icon="activity">
+    Every pipeline execution is tracked in your memory backend:
+    - Timing metrics for each node
+    - Token usage for LLM calls
+    - Full state history for debugging
+    - User session context preservation
+  </Accordion>
+</AccordionGroup>
+
+<Tip>Use the Arivu Dashboard to visualize pipeline execution traces and performance metrics in real-time.</Tip>

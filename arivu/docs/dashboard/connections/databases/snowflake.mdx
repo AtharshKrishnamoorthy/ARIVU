@@ -1,0 +1,47 @@
+---
+title: "Snowflake"
+description: "Integrate Snowflake for scalable cloud data warehousing."
+---
+
+import { Callout, Steps, CardGroup, Card } from "mintlify/components";
+
+<img src="/images/snowflake.png" alt="Snowflake Integration" />
+
+## Overview
+
+Snowflake's unique architecture physically separates but logically integrates storage, compute, and services, offering virtually unlimited concurrent capabilities.
+
+<CardGroup cols={2}>
+  <Card title="Compute Independence" icon="server">
+    Scale compute and storage independently for optimization.
+  </Card>
+  <Card title="Zero Management" icon="wand-magic-sparkles">
+    No infrastructure to manage; truly self-managing data cloud.
+  </Card>
+</CardGroup>
+
+## Configuration
+
+Snowflake requires specifying a warehouse and role setup.
+
+<Steps>
+  <Step title="Prerequisites">
+    Create a specific service account user, role, warehouse, and database within Snowflake.
+  </Step>
+  <Step title="Configure Environment">
+    Supply the variables to your `.env` settings:
+    <CodeGroup>
+    ```bash .env
+    SNOWFLAKE_ACCOUNT="locator" # e.g. xyz12345.us-east-1
+    SNOWFLAKE_USER="arivu_service_account"
+    SNOWFLAKE_PASSWORD="super_secret_password"
+    SNOWFLAKE_WAREHOUSE="COMPUTE_WH"
+    SNOWFLAKE_DATABASE="ARIVU_DB"
+    SNOWFLAKE_SCHEMA="PUBLIC"
+    SNOWFLAKE_ROLE="ARIVU_ROLE"
+    ```
+    </CodeGroup>
+  </Step>
+</Steps>
+
+<Info>Arivu respects your Snowflake warehouse suspending settings, ensuring cost-efficiency during idle times.</Info>

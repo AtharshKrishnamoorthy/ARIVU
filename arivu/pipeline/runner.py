@@ -7,7 +7,7 @@ Takes the dict returned by db.query() and runs it through the
 compiled LangGraph, returning a clean PipelineResult.
 
 Usage:
-    from ARIVU.pipeline.runner import run_pipeline
+    from arivu.pipeline.runner import run_pipeline
 
     pipeline_input = db.query("show me top 10 orders")
     result = run_pipeline(pipeline_input)

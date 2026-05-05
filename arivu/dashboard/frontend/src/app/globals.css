@@ -144,3 +144,79 @@
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }
+
+/* ── Thesys C1 / Crayon UI theme overrides ── */
+/* Force C1 rendered components to inherit the app theme */
+.c1-viz-wrapper {
+  color-scheme: light dark;
+}
+.dark .c1-viz-wrapper,
+.dark .c1-viz-wrapper * {
+  color-scheme: dark;
+}
+/* Override white backgrounds in C1 components */
+.dark .c1-viz-wrapper [data-testid],
+.dark .c1-viz-wrapper [class*="crayon"],
+.dark .c1-viz-wrapper [class*="Card"],
+.dark .c1-viz-wrapper [class*="card"],
+.dark .c1-viz-wrapper > div {
+  background-color: var(--card) !important;
+  color: var(--foreground) !important;
+  border-color: var(--border) !important;
+}
+.dark .c1-viz-wrapper p,
+.dark .c1-viz-wrapper span,
+.dark .c1-viz-wrapper h1,
+.dark .c1-viz-wrapper h2,
+.dark .c1-viz-wrapper h3,
+.dark .c1-viz-wrapper h4,
+.dark .c1-viz-wrapper label {
+  color: var(--foreground) !important;
+}
+
+/* ── React Grid Layout ── */
+.layout {
+  background: transparent !important;
+}
+
+.react-grid-layout {
+  background: transparent !important;
+}
+
+.react-grid-item {
+  transition: all 200ms ease-in-out;
+  background: transparent !important;
+  border: none !important;
+}
+
+.react-grid-item.react-grid-placeholder {
+  background: var(--primary) !important;
+  opacity: 0.15 !important;
+  border-radius: 0.75rem;
+  z-index: 1;
+}
+
+.react-grid-item > .react-resizable-handle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  z-index: 20;
+}
+
+.react-grid-item > .react-resizable-handle::after {
+  content: "\\";
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 5px;
+  height: 5px;
+  background: var(--muted-foreground);
+  border-radius: 0 0 2px 0;
+}
+
+/* ── Smooth C1 component rendering inside grid ── */
+.react-grid-item [class*="C1Component"],
+.react-grid-item [class*="ThemeProvider"] {
+  width: 100% !important;
+  height: 100% !important;
+}

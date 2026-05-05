@@ -24,7 +24,7 @@ Usage:
     from arivu import Arivu
     from arivu.integrations.whatsapp import WhatsAppIntegration
 
-    db = ARIVU.connect(host=..., mode="user")
+    db = Arivu.connect(host=..., mode="user")
     bot = WhatsAppIntegration(db, admin_numbers=["+919876543210"])
     bot.start(host="0.0.0.0", port=8080)   # starts FastAPI/uvicorn server
 

@@ -1,0 +1,61 @@
+---
+title: "Charts & Dashboard Items"
+description: "How to create charts and add them to dashboards; layout and management."
+---
+
+import { Callout, Steps, CardGroup, Card } from "mintlify/components";
+
+## Charts & Dashboard Items
+
+Arivu dashboards currently support creating charts from saved queries and adding (pinning) those charts to dashboards. The supported, maintained features are:
+
+- Dashboard creation and management (create, rename, delete)
+- Create charts from saved queries
+- Pin charts to dashboards
+- Edit dashboard layout (drag & drop positioning)
+- Manage charts (edit query, update visualization, remove)
+
+<CardGroup cols={2}>
+  <Card title="Dashboard Management" icon="layout">
+    Create, rename, and delete dashboards; manage access and sharing.
+  </Card>
+  <Card title="Charts" icon="chart-line">
+    Create charts from saved queries and pin them to dashboards for visualization.
+  </Card>
+  <Card title="Pinning" icon="pin">
+    Pin important charts to one or more dashboards for quick access.
+  </Card>
+  <Card title="Layout Editing" icon="move">
+    Rearrange pinned charts using the dashboard layout editor.
+  </Card>
+</CardGroup>
+
+## Creating a Chart and Adding to a Dashboard
+
+<Steps>
+  <Step title="Create a Chart">
+    Save a query, choose a chart type (line, bar, pie), and configure axes and labels.
+  </Step>
+  <Step title="Pin to Dashboard">
+    From the chart or query result view, click **Pin** and select the target dashboard.
+  </Step>
+  <Step title="Arrange Layout">
+    Open the dashboard and drag the chart to the desired position. Save the layout.
+  </Step>
+</Steps>
+
+## Managing Charts
+
+- Edit a chart's underlying query or visualization settings from the chart detail view.
+- Remove a pinned chart from a dashboard without deleting the underlying chart.
+- Export chart data as CSV from the chart detail view.
+
+<Callout type="info">
+  This page intentionally limits descriptions to features that are implemented and maintained. If you want additional visualization types or widget patterns, let's discuss and plan them.
+</Callout>
+
+## Next Steps
+
+- [Dashboard Integrations](./integrations.mdx)
+- [Automations & Workflows](../automations/overview.mdx)
+- [Monitoring & Logs](../monitoring/overview.mdx)

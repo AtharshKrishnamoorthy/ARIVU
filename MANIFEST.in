@@ -5,4 +5,5 @@ include LICENSE
 prune arivu/dashboard
 prune arivu/docs
 prune arivu/examples
+exclude arivu/.env
 prune .venv

@@ -86,12 +86,18 @@ def route_after_db_execution(state: GraphState) -> str:
     """
     error set → error_boundary
     no rows   → response_generator  (let it explain "no results found")
-    rows      → result_embedder
+    <= 200 rows -> response_generator (short-circuit FAISS ML layer)
+    > 200 rows  → result_embedder
     """
     if state.has_error():
         return "error_boundary"
     if not state.raw_result:
         return "response_generator"
+    
+    # OVERHAUL BYPASS: If dataset is small, directly feed LLM contexts without embeddings
+    if len(state.raw_result) <= 200:
+        return "response_generator"
+
     return "result_embedder"
 
 

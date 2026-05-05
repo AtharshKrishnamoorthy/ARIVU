@@ -1,0 +1,39 @@
+---
+title: "Pipeline Traces"
+description: "Granular latency and logic execution tracking."
+---
+
+<Frame>
+  <img src="/images/arivu-traces.png" alt="Pipeline Traces" className="rounded-xl border border-gray-200 dark:border-gray-800" />
+</Frame>
+
+## Overview
+
+Arivu operates via a complex LangGraph state machine. The Traces dashboard provides a visual map of exactly how much time each node took and the transformations applied to the data payload locally.
+
+<CardGroup cols={2}>
+  <Card title="Node-Level Telemetry" icon="microchip">
+    Identify latency bottlenecks down to the exact pipeline boundary.
+  </Card>
+  <Card title="State Visualization" icon="chart-simple">
+    Monitor how the state dictionary morphs through generation and verification.
+  </Card>
+</CardGroup>
+
+## What You Can Inspect
+
+<AccordionGroup>
+  <Accordion title="Execution Loops" icon="rotate" defaultOpen>
+    Visualize self-correction loops. When the `query_verifier` rejects SQL, the trace shows the round-trip back to `sql_generator` with the error context injected.
+  </Accordion>
+  <Accordion title="Token Usage" icon="coins">
+    LLM token usage tracking per node. See exactly how many input/output tokens were consumed and calculate cost-per-query.
+  </Accordion>
+  <Accordion title="Latency Breakdown" icon="timer">
+    A per-node millisecond breakdown: intake, generation, verification, execution, and response. Quickly spot if the LLM or the database is the bottleneck.
+  </Accordion>
+</AccordionGroup>
+
+<Note>
+  Pipeline trace data persists inside your local `arivu.db` (SQLite) or a Redis cluster if configured. Your telemetry never leaves your infrastructure. 
+</Note>

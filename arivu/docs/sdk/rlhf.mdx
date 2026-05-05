@@ -1,0 +1,96 @@
+---
+title: "RLHF and Admin Approvals"
+description: "Implement human-in-the-loop safety gates and continuous AI alignment within the Arivu SDK."
+---
+
+Arivu provides two distinct human-in-the-loop mechanisms out of the box: **Admin Approvals** (to protect database integrity) and **RLHF** (Reinforcement Learning from Human Feedback, to align AI generation quality).
+
+<CardGroup cols={2}>
+  <Card title="Admin Approval Gate" icon="lock">
+    Pauses destructive queries (`UPDATE`, `DELETE`, `DROP`) until a verified administrator explicitly approves the execution.
+  </Card>
+  <Card title="RLHF Signals" icon="thumbs-up">
+    Collects user sentiment and routes it back into the memory node for telemetry tracking and future prompt optimization.
+  </Card>
+</CardGroup>
+
+---
+
+## 1. The Admin Approval Gate
+
+When the `Arivu` engine is parameterized with `mode="user"`, the internal LangGraph state machine automatically restricts data-modifying SQL queries.
+
+Instead of running blindly, the `query_verifier` node delegates control to the `admin_approval` node. The pipeline halts execution, writes the SQL payload to pending memory, and returns early.
+
+### Architecture Flow
+
+<Steps>
+  <Step title="Detection">
+    The LLM formulates a mutation query (e.g., `DELETE FROM logs WHERE status = 'expired'`).
+  </Step>
+  <Step title="Pipeline Intervention">
+    The pipeline identifies the destructive intent and outputs a `PipelineResult` with `pending_approval = True`, keeping the user context perfectly preserved.
+  </Step>
+  <Step title="Resolution Verification">
+    A permitted user executes a `/approve` command. The pipeline resumes state, running the `db_execution` node securely.
+  </Step>
+</Steps>
+
+### Implementing Approvals via SDK
+
+If you're building a custom client (or extending `arivu.integrations.BaseIntegration`), you manage the pending state manually using Arivu's Memory singleton:
+
+<CodeGroup>
+```python my_integration.py
+from arivu.memory.store import get_pending_approval, resolve_approval
+
+def handle_admin_interaction(user_action: str, session_id: str):
+    # 1. Fetching the quarantined SQL
+    pending = get_pending_approval(session_id)
+    if pending:
+        sql_query = pending['sql']
+        print("Safety Gate: Requires Approval for ->", sql_query)
+    
+    # 2. Resolving based on user action
+    is_approved = (user_action == "/approve")
+    
+    # Passes boolean to memory. True routes to DB Execution. False cancels it.
+    resolve_approval(session_id, approve=is_approved)
+```
+</CodeGroup>
+
+<Warning>
+  If `Arivu.connect()` is run with `mode="admin"`, the LangGraph conditionally **bypasses** the `admin_approval` node and enforces mutations unconditionally. Use this solely for restricted dev environments.
+</Warning>
+
+---
+
+## 2. Dynamic RLHF Integration
+
+RLHF ensures your Text-to-SQL logic converges strictly onto your users' intents over time. If a user corrects the bot (e.g., *"No, I meant total gross revenue, not net"*), capturing that correction prevents identical hallucinations later.
+
+### Feeding execution signals
+
+You inject sentiment back into the graph when issuing `run_pipeline()`. The `rlhf_signal` can be a binary sentiment or a comprehensive text explanation.
+
+<CodeGroup>
+```python query_handler.py
+# 1. Standard execution
+app.run_pipeline({
+    "question": "Show me our active users", 
+    "session_id": "sid_1"
+})
+
+# 2. RLHF triggered on correction
+result = app.run_pipeline({
+    "question": "Group them by region actually.", 
+    "session_id": "sid_1"
+}, rlhf_signal="negative - bot failed to group by region initially")
+
+print("Pipeline Adjusted:", result.success)
+```
+</CodeGroup>
+
+<Info>
+  The `rlhf_feedback` LangGraph node executes entirely downstream of the `response_generator`. Injecting RLHF signals adds **zero blocking latency** to your conversational UX. 
+</Info>

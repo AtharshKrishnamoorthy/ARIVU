@@ -1,0 +1,87 @@
+---
+title: "Slack Integration"
+description: "Connect Arivu to Slack with slash commands, DM support, approvals, and RLHF feedback."
+---
+
+import { Callout, Steps, CardGroup, Card } from "mintlify/components";
+
+## What the backend needs
+
+The Slack adapter in `integrations/slack_adapter.py` uses Slack Bolt and supports two runtime modes:
+
+- **Socket Mode** for local development or private deployments
+- **HTTP mode** for deployments with a public webhook endpoint
+
+Required values:
+
+- `SLACK_BOT_TOKEN` or `bot_token`
+- `SLACK_APP_TOKEN` for Socket Mode
+- `SLACK_SIGNING_SECRET` for HTTP mode
+- Optional `admin_user_ids` for approval gating
+
+## What Slack users can do
+
+<CardGroup cols={2}>
+  <Card title="Direct Messages" icon="message-circle">
+    Users can ask questions in DM and receive replies in Slack.
+  </Card>
+  <Card title="@mentions" icon="at-sign">
+    Mention the bot in a channel and keep replies in the thread.
+  </Card>
+  <Card title="Slash Commands" icon="terminal">
+    `/dh-query` runs a question and `/dh-refresh` refreshes schema.
+  </Card>
+  <Card title="Approvals and Feedback" icon="shield-check">
+    Approve or reject destructive SQL and collect 👍 / 👎 feedback.
+  </Card>
+</CardGroup>
+
+## Setup steps
+
+<Steps>
+  <Step title="Create the Slack app">
+    Create an app in the [Slack API Console](https://api.slack.com/apps).
+  </Step>
+  <Step title="Enable the right mode">
+    Use Socket Mode for zero-public-URL setups, or HTTP mode if you want Slack to call a public endpoint.
+  </Step>
+  <Step title="Add scopes">
+    Add `chat:write`, `app_mentions:read`, `commands`, `reactions:read`, `im:history`, `im:write`, and `channels:history`.
+  </Step>
+  <Step title="Install the app">
+    Install the bot to your workspace and copy the bot token.
+  </Step>
+  <Step title="Set admin users">
+    Pass Slack user IDs in `admin_user_ids` so only trusted users can approve SQL.
+  </Step>
+  <Step title="Start Arivu">
+    Start the adapter in Socket Mode or HTTP mode depending on your deployment.
+  </Step>
+</Steps>
+
+## Example
+
+```python
+from arivu.integrations.slack_adapter import SlackIntegration
+
+adapter = SlackIntegration(
+    db=db,
+    bot_token="xoxb-your-bot-token",
+    app_token="xapp-your-app-token",
+    signing_secret="your-signing-secret",
+    admin_user_ids=["U12345678", "U23456789"],
+)
+
+adapter.start(socket_mode=True)
+```
+
+## Backend behavior
+
+- Session IDs are mapped as `slack:{user_id}`.
+- Non-destructive questions return a normal answer and RLHF buttons.
+- Destructive SQL is held for admin approval and sent to admins with approve/reject buttons.
+- `/dh-refresh` refreshes the database schema cache.
+
+<Callout type="info">
+  Slack responses stay in the thread when the query comes from a channel mention, which keeps channels clean.
+</Callout>

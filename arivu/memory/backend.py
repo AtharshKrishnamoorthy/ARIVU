@@ -82,6 +82,8 @@ class BaseMemoryBackend(ABC):
         question: str,
         sql: str,
         trace_events: list[dict],
+        dialect: str = "",
+        connection_meta: dict = None,
     ) -> None: ...
 
     @abstractmethod
@@ -96,6 +98,9 @@ class BaseMemoryBackend(ABC):
 
     @abstractmethod
     def get_session_list(self, limit: int) -> list[dict]: ...
+
+    @abstractmethod
+    def get_dashboard_stats(self) -> dict: ...
 
     # ── Config ───────────────────────────────────────────────────────────
 
@@ -123,10 +128,11 @@ def get_backend(backend_type: str) -> BaseMemoryBackend:
     """
     if backend_type == "sqlite":
         from .sqlite_backend import SQLiteMemoryBackend
-        db_path = os.environ.get(
-            "ARIVU_SQLITE_PATH",
-            os.path.join(os.path.expanduser("~"), ".ARIVU", "memory.db"),
-        )
+        
+        # Use workspace-local DB by default to avoid OneDrive syncing issues on C: drive
+        default_path = os.path.abspath(os.path.join(os.getcwd(), ".arivu_data", "memory.db"))
+        
+        db_path = os.environ.get("ARIVU_SQLITE_PATH", default_path)
         logger.info(f"Memory backend: SQLite  path={db_path}")
         return SQLiteMemoryBackend(db_path=db_path)
 

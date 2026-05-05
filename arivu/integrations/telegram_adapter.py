@@ -1,7 +1,7 @@
 """
 arivu.integrations.telegram
 ───────────────────────────────────
-Telegram bot integration for ARIVU.
+Telegram bot integration for arivu.
 
 Features:
   - NL queries via text messages
@@ -18,7 +18,7 @@ Usage:
     from arivu import Arivu
     from arivu.integrations.telegram import TelegramIntegration
 
-    db = ARIVU.connect(host=..., mode="user")
+    db = Arivu.connect(host=..., mode="user")
     bot = TelegramIntegration(db, token="YOUR_TOKEN")
     bot.start()   # blocking
 
@@ -42,7 +42,7 @@ logger = logging.getLogger("arivu.integrations.telegram")
 
 class TelegramIntegration(BaseIntegration):
     """
-    Telegram bot adapter for ARIVU.
+    Telegram bot adapter for arivu.
 
     Every Telegram user gets their own persistent session in the
     memory layer — keyed as "telegram:{user_id}".

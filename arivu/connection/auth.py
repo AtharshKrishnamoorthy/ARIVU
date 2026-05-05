@@ -4,27 +4,32 @@ arivu.connection.auth
 Credential validation, mode checking, and SQLAlchemy engine construction.
 
 Kept deliberately thin — all it does is:
-  1. Build a connection URL from raw credentials
-  2. Fire a lightweight probe query to verify connectivity
-  3. Raise a clean AuthError if anything goes wrong
+  1. Look up the dialect in the registry
+  2. Build a connection URL via the dialect descriptor
+  3. Fire a lightweight probe query to verify connectivity
+  4. Raise a clean AuthError if anything goes wrong
+
+Supported dialects (v0.2.0):
+    postgresql   — PostgreSQL (psycopg2)
+    mysql        — MySQL (PyMySQL)
+    sqlite       — SQLite (built-in)
+    snowflake    — Snowflake (snowflake-sqlalchemy)
+    databricks   — Databricks Unity Catalog (databricks-sqlalchemy)
 """
 
 from __future__ import annotations
 
 import logging
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from typing import Any, Optional
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import OperationalError, ArgumentError
 
-from .exceptions import AuthError
+from .exceptions import AuthError, DialectNotInstalledError
 
 logger = logging.getLogger("arivu.auth")
-
-SUPPORTED_DIALECTS = {
-    "postgresql": "postgresql+psycopg2",
-    "mysql": "mysql+pymysql",
-    "sqlite": "sqlite",
-}
 
 ALLOWED_MODES = {"user", "admin"}
 
@@ -43,51 +48,240 @@ MODE_PERMISSIONS = {
 DESTRUCTIVE_STATEMENTS = {"ALTER", "DROP", "TRUNCATE", "DELETE"}
 
 
-def authenticate(
-    host: str,
-    port: int,
-    user: str,
-    password: str,
-    dbname: str,
-    dialect: str = "postgresql",
-) -> "sqlalchemy.engine.Engine":
+# ─────────────────────────────────────────────────────────────────────────────
+# Dialect Descriptor — base class
+# ─────────────────────────────────────────────────────────────────────────────
+
+class DialectDescriptor(ABC):
     """
-    Build a SQLAlchemy engine and verify the credentials with a probe query.
-
-    Returns the live engine on success.
-    Raises AuthError on any credential or connectivity failure.
+    Base class for dialect descriptors. Each dialect knows how to:
+      1. Build its own SQLAlchemy connection URL
+      2. Provide the correct probe SQL
+      3. Report which pip package is needed
     """
-    if dialect not in SUPPORTED_DIALECTS:
-        raise AuthError(
-            f"Unsupported dialect '{dialect}'. "
-            f"Choose from: {', '.join(SUPPORTED_DIALECTS)}"
-        )
+    name: str
+    probe_sql: str = "SELECT 1"
+    pip_install: str = ""
 
-    driver = SUPPORTED_DIALECTS[dialect]
+    @abstractmethod
+    def build_url(self, **kwargs) -> str:
+        """Build the SQLAlchemy connection URL from the provided parameters."""
 
-    # SQLite is file-based — no host/port/user needed
-    if dialect == "sqlite":
-        url = f"sqlite:///{dbname}"
-    else:
-        url = f"{driver}://{user}:{password}@{host}:{port}/{dbname}"
-
-    logger.debug(f"Building engine for {dialect}://{host}:{port}/{dbname}")
-
-    try:
-        engine = create_engine(
+    def build_engine(self, **kwargs) -> Any:
+        """
+        Build and return a SQLAlchemy engine.
+        Override this for dialects that need custom create_engine kwargs.
+        """
+        url = self.build_url(**kwargs)
+        return create_engine(
             url,
-            pool_pre_ping=True,      # verifies connections before checkout
+            pool_pre_ping=True,
             pool_size=5,
             max_overflow=10,
             echo=False,
         )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Built-in RDBMS dialects (always available — drivers are core deps)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class PostgresDialect(DialectDescriptor):
+    name = "postgresql"
+    probe_sql = "SELECT 1"
+    pip_install = "pip install psycopg2-binary"
+
+    def build_url(self, host: str, port: int, user: str, password: str,
+                  dbname: str, **kwargs) -> str:
+        return f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{dbname}"
+
+
+class MySQLDialect(DialectDescriptor):
+    name = "mysql"
+    probe_sql = "SELECT 1"
+    pip_install = "pip install pymysql"
+
+    def build_url(self, host: str, port: int, user: str, password: str,
+                  dbname: str, **kwargs) -> str:
+        return f"mysql+pymysql://{user}:{password}@{host}:{port}/{dbname}"
+
+
+class SQLiteDialect(DialectDescriptor):
+    name = "sqlite"
+    probe_sql = "SELECT 1"
+    pip_install = ""  # built-in
+
+    def build_url(self, dbname: str, **kwargs) -> str:
+        return f"sqlite:///{dbname}"
+
+    def build_engine(self, **kwargs) -> Any:
+        url = self.build_url(**kwargs)
+        return create_engine(url, echo=False)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Cloud warehouse dialects (optional — drivers installed separately)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class SnowflakeDialect(DialectDescriptor):
+    """
+    Snowflake — cloud data warehouse.
+
+    Required params: account, user, password, dbname
+    Optional params: warehouse, role, schema_name
+    Install: pip install arivu-ai[snowflake]
+    """
+    name = "snowflake"
+    probe_sql = "SELECT CURRENT_VERSION()"
+    pip_install = "pip install arivu-ai[snowflake]"
+
+    def build_url(self, account: str, user: str, password: str, dbname: str,
+                  warehouse: str = None, role: str = None,
+                  schema_name: str = None, **kwargs) -> str:
+        try:
+            from snowflake.sqlalchemy import URL as SnowflakeURL
+        except ImportError:
+            raise DialectNotInstalledError("snowflake", self.pip_install)
+
+        url_kwargs = {
+            "user": user,
+            "password": password,
+            "account": account,
+            "database": dbname,
+        }
+        if warehouse:
+            url_kwargs["warehouse"] = warehouse
+        if role:
+            url_kwargs["role"] = role
+        if schema_name:
+            url_kwargs["schema"] = schema_name
+
+        return str(SnowflakeURL(**url_kwargs))
+
+    def build_engine(self, **kwargs) -> Any:
+        url = self.build_url(**kwargs)
+        return create_engine(
+            url,
+            pool_pre_ping=True,
+            pool_size=3,
+            max_overflow=5,
+            echo=False,
+        )
+
+
+class DatabricksDialect(DialectDescriptor):
+    """
+    Databricks Unity Catalog — cloud lakehouse.
+
+    Required params: host, http_path, access_token
+    Optional params: catalog, schema_name
+    Install: pip install arivu-ai[databricks]
+    """
+    name = "databricks"
+    probe_sql = "SELECT 1"
+    pip_install = "pip install arivu-ai[databricks]"
+
+    def build_url(self, host: str, http_path: str, access_token: str,
+                  catalog: str = "main", schema_name: str = "default",
+                  **kwargs) -> str:
+        try:
+            import databricks.sqlalchemy  # noqa: F401
+        except ImportError:
+            raise DialectNotInstalledError("databricks", self.pip_install)
+
+        return (
+            f"databricks://token:{access_token}@{host}"
+            f"?http_path={http_path}&catalog={catalog}&schema={schema_name}"
+        )
+
+    def build_engine(self, **kwargs) -> Any:
+        url = self.build_url(**kwargs)
+        return create_engine(
+            url,
+            echo=False,
+            # Databricks has higher latency — adjust timeouts
+            connect_args={"_socket_timeout": 60},
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Dialect Registry
+# ─────────────────────────────────────────────────────────────────────────────
+
+DIALECT_REGISTRY: dict[str, DialectDescriptor] = {
+    desc.name: desc for desc in [
+        PostgresDialect(),
+        MySQLDialect(),
+        SQLiteDialect(),
+        SnowflakeDialect(),
+        DatabricksDialect(),
+    ]
+}
+
+# Backward-compatible alias for code that references the old dict
+SUPPORTED_DIALECTS = {name: name for name in DIALECT_REGISTRY}
+
+
+def get_dialect(name: str) -> DialectDescriptor:
+    """Look up a dialect descriptor by name. Raises AuthError if unknown."""
+    if name not in DIALECT_REGISTRY:
+        raise AuthError(
+            f"Unsupported dialect '{name}'. "
+            f"Choose from: {', '.join(sorted(DIALECT_REGISTRY))}"
+        )
+    return DIALECT_REGISTRY[name]
+
+
+def list_dialects() -> dict[str, dict]:
+    """Return all registered dialects and whether their drivers are installed."""
+    result = {}
+    for name, desc in DIALECT_REGISTRY.items():
+        installed = True
+        if name == "snowflake":
+            try:
+                import snowflake.sqlalchemy  # noqa: F401
+            except ImportError:
+                installed = False
+        elif name == "databricks":
+            try:
+                import databricks.sqlalchemy  # noqa: F401
+            except ImportError:
+                installed = False
+        result[name] = {
+            "installed": installed,
+            "pip_install": desc.pip_install,
+            "probe_sql": desc.probe_sql,
+        }
+    return result
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Public API — authenticate
+# ─────────────────────────────────────────────────────────────────────────────
+
+def authenticate(dialect: str = "postgresql", **kwargs) -> "sqlalchemy.engine.Engine":
+    """
+    Build a SQLAlchemy engine and verify the credentials with a probe query.
+
+    Delegates URL building and engine creation to the dialect descriptor.
+    Returns the live engine on success.
+    Raises AuthError on any credential or connectivity failure.
+    """
+    desc = get_dialect(dialect)
+
+    logger.debug(f"Building engine for dialect={dialect}")
+
+    try:
+        engine = desc.build_engine(**kwargs)
+    except DialectNotInstalledError:
+        raise  # re-raise as-is — don't wrap it
     except ArgumentError as exc:
         raise AuthError(f"Invalid connection parameters: {exc}") from exc
 
     # ── Probe query — fail fast with a clear message ──
-    _probe(engine, dialect)
+    _probe(engine, desc.probe_sql)
 
-    logger.info(f"Auth successful: {dialect}://{host}:{port}/{dbname} as user='{user}'")
+    logger.info(f"Auth successful: dialect={dialect}")
     return engine
 
 
@@ -133,17 +327,11 @@ def mode_permits(mode: str, sql: str) -> tuple[bool, str]:
 # Internal
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _probe(engine, dialect: str) -> None:
+def _probe(engine, probe_sql: str) -> None:
     """
     Run a minimal no-op query to verify the connection is live.
     Raises AuthError with a human-readable message on failure.
     """
-    probe_sql = {
-        "postgresql": "SELECT 1",
-        "mysql": "SELECT 1",
-        "sqlite": "SELECT 1",
-    }.get(dialect, "SELECT 1")
-
     try:
         with engine.connect() as conn:
             conn.execute(text(probe_sql))

@@ -38,6 +38,23 @@ class SchemaExtractionError(ArivuError):
     """
 
 
+class DialectNotInstalledError(ArivuError):
+    """
+    Raised when a dialect's driver package is not installed.
+
+    Example: trying to use dialect='snowflake' without
+    having snowflake-sqlalchemy installed.
+    """
+
+    def __init__(self, dialect: str, pip_install: str) -> None:
+        self.dialect = dialect
+        self.pip_install = pip_install
+        super().__init__(
+            f"Dialect '{dialect}' requires an additional driver. "
+            f"Install it with: {pip_install}"
+        )
+
+
 class ModeViolationError(ArivuError):
     """
     Raised by the query verifier when the generated SQL contains

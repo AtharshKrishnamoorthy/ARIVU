@@ -1,0 +1,47 @@
+---
+title: "Connections Overview"
+description: "Managing your data and intelligence sources"
+---
+
+Arivu acts as a bridge between your **Data (SQL)** and **Intelligence (LLM)**. The Connections module is where you configure both sides of this equation.
+
+<img src="/images/arivu-db.png" className="hidden dark:block" />
+
+
+## Data Sources
+
+Connect to your relational databases. Arivu supports multi-dialect federation, meaning you can have PostgreSQL, MySQL, and SQLite connections running simultaneously.
+
+<CardGroup cols={2}>
+  <Card title="PostgreSQL" icon="database" href="/dashboard/connections/databases/postgresql">
+    Enterprise-grade ACID-compliant relational database.
+  </Card>
+  <Card title="MySQL" icon="database" href="/dashboard/connections/databases/mysql">
+    High-performance relational engine for web-scale apps.
+  </Card>
+  <Card title="SQLite" icon="file" href="/dashboard/connections/databases/sqlite">
+    Zero-config local database for rapid prototyping.
+  </Card>
+  <Card title="Snowflake" icon="snowflake" href="/dashboard/connections/databases/snowflake">
+    Scalable cloud data warehouse for enterprise analytics.
+  </Card>
+</CardGroup>
+
+## Intelligence Layer
+
+Select and configure the LLM that powers SQL generation. Swap providers with zero code changes.
+
+<CardGroup cols={2}>
+  <Card title="OpenAI" icon="robot" href="/dashboard/connections/llms/openai">
+    GPT-4o and GPT-4o-mini for industry-standard reasoning.
+  </Card>
+  <Card title="Anthropic" icon="brain-circuit" href="/dashboard/connections/llms/anthropic">
+    Claude 3.5 Sonnet for advanced dialect-aware generation.
+  </Card>
+  <Card title="Groq" icon="bolt" href="/dashboard/connections/llms/groq">
+    Ultra-fast inference with Llama 3 for real-time dashboards.
+  </Card>
+  <Card title="Ollama" icon="server" href="/dashboard/connections/llms/ollama">
+    Run models locally with zero API costs.
+  </Card>
+</CardGroup>

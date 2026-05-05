@@ -129,8 +129,15 @@ def _extract_columns(inspector, table_name: str) -> list[dict]:
 
 
 def _extract_foreign_keys(inspector, table_name: str) -> list[dict]:
+    try:
+        raw_fks = inspector.get_foreign_keys(table_name)
+    except (NotImplementedError, Exception) as exc:
+        # Some cloud warehouses (Databricks, BigQuery) don't support FK introspection
+        logger.debug(f"FK introspection not supported for '{table_name}': {exc}")
+        return []
+
     result = []
-    for fk in inspector.get_foreign_keys(table_name):
+    for fk in raw_fks:
         for local_col, ref_col in zip(
             fk.get("constrained_columns", []),
             fk.get("referred_columns", []),
@@ -144,11 +151,18 @@ def _extract_foreign_keys(inspector, table_name: str) -> list[dict]:
 
 
 def _extract_indexes(inspector, table_name: str) -> list[dict]:
+    try:
+        raw_indexes = inspector.get_indexes(table_name)
+    except (NotImplementedError, Exception) as exc:
+        # Some cloud warehouses don't support index introspection
+        logger.debug(f"Index introspection not supported for '{table_name}': {exc}")
+        return []
+
     return [
         {
             "name": idx.get("name", "unnamed"),
             "columns": idx.get("column_names", []),
             "unique": idx.get("unique", False),
         }
-        for idx in inspector.get_indexes(table_name)
+        for idx in raw_indexes
     ]

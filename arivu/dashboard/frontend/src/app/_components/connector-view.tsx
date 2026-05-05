@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useState } from "react";
-import { Database, Save, Loader2, CheckCircle2, Play, LogIn, Server, HardDrive } from "lucide-react";
+import { Database, Save, Loader2, CheckCircle2, Play, LogIn } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,52 @@ type ConnectionConfig = {
   user: string;
   password?: string;
   dbname: string;
+  // Snowflake-specific
+  account?: string;
+  warehouse?: string;
+  role?: string;
+  schema_name?: string;
+  // Databricks-specific
+  http_path?: string;
+  access_token?: string;
+  catalog?: string;
+};
+
+const DIALECT_LOGOS: Record<string, string> = {
+  postgresql: "/postgresql-logo.svg",
+  mysql: "/mysql-logo.svg",
+  sqlite: "/sqlite-logo.svg",
+  snowflake: "/snowflake-ar21.svg",
+  databricks: "/azure-databricks.svg",
+};
+
+const DIALECT_LABELS: Record<string, string> = {
+  postgresql: "PostgreSQL",
+  mysql: "MySQL",
+  sqlite: "SQLite",
+  snowflake: "Snowflake",
+  databricks: "Databricks",
+};
+
+const getDefaultPort = (dialect: string) => {
+  switch (dialect) {
+    case "mysql": return "3306";
+    case "postgresql": return "5432";
+    default: return "";
+  }
+};
+
+const getConnectionDisplay = (c: ConnectionConfig): string => {
+  switch (c.dialect) {
+    case "snowflake":
+      return `snowflake://${c.account || ""}/${c.dbname || ""}`;
+    case "databricks":
+      return `databricks://${c.host || ""}`;
+    case "sqlite":
+      return `sqlite:///${c.dbname || ""}`;
+    default:
+      return `${c.dialect}://${c.user || ""}@${c.host || ""}:${c.port || ""}/${c.dbname || ""}`;
+  }
 };
 
 export function ConnectorView() {
@@ -51,6 +98,15 @@ export function ConnectorView() {
   useEffect(() => {
     loadData();
   }, []);
+
+  const handleDialectChange = (v: string) => {
+    setConfig({
+      ...config,
+      dialect: v,
+      port: getDefaultPort(v),
+      host: v === "snowflake" || v === "sqlite" ? "" : config.host || "localhost",
+    });
+  };
 
   const handleTest = async () => {
     if (!config.alias) {
@@ -108,6 +164,8 @@ export function ConnectorView() {
 
   if (loading) return <div className="text-xs text-muted-foreground p-4">Loading connections...</div>;
 
+  const isTraditional = config.dialect === "postgresql" || config.dialect === "mysql";
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
@@ -144,20 +202,22 @@ export function ConnectorView() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">SQL Dialect</Label>
-                <Select value={config.dialect} onValueChange={v => setConfig({...config, dialect: v})}>
+                <Select value={config.dialect} onValueChange={handleDialectChange}>
                   <SelectTrigger className="w-full h-8 text-xs font-medium">
                     <SelectValue placeholder="Select Dialect" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="postgresql">
-                      <div className="flex items-center gap-2"><img src="/postgresql-logo.svg" alt="PostgreSQL" className="w-3.5 h-3.5 object-contain" /><span>PostgreSQL</span></div>
-                    </SelectItem>
-                    <SelectItem value="mysql">
-                      <div className="flex items-center gap-2"><img src="/mysql-logo.svg" alt="MySQL" className="w-3.5 h-3.5 object-contain" /><span>MySQL</span></div>
-                    </SelectItem>
-                    <SelectItem value="sqlite">
-                      <div className="flex items-center gap-2"><img src="/sqlite-logo.svg" alt="SQLite" className="w-3.5 h-3.5 object-contain" /><span>SQLite</span></div>
-                    </SelectItem>
+                    {Object.entries(DIALECT_LABELS).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>
+                        <div className="flex items-center gap-2">
+                          <img src={DIALECT_LOGOS[key]} alt={label} className="w-3.5 h-3.5 object-contain" />
+                          <span>{label}</span>
+                          {(key === "snowflake" || key === "databricks") && (
+                            <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 ml-1 text-blue-400 border-blue-400/30">Cloud</Badge>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -173,26 +233,96 @@ export function ConnectorView() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Host</Label>
-                <Input value={config.host} onChange={e => setConfig({...config, host: e.target.value})} className="h-8 text-xs" placeholder="localhost" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Port</Label>
-                <Input value={config.port} onChange={e => setConfig({...config, port: e.target.value})} className="h-8 text-xs" placeholder="5432" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Database Name</Label>
-                <Input value={config.dbname} onChange={e => setConfig({...config, dbname: e.target.value})} className="h-8 text-xs" placeholder="postgres" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Username</Label>
-                <Input value={config.user} onChange={e => setConfig({...config, user: e.target.value})} className="h-8 text-xs" placeholder="postgres" />
-              </div>
-              <div className="col-span-2 space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Password</Label>
-                <Input type="password" value={config.password} onChange={e => setConfig({...config, password: e.target.value})} className="h-8 text-xs" placeholder="••••••••" />
-              </div>
+
+              {/* ── Traditional RDBMS Fields ── */}
+              {isTraditional && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Host</Label>
+                    <Input value={config.host} onChange={e => setConfig({...config, host: e.target.value})} className="h-8 text-xs" placeholder="localhost" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Port</Label>
+                    <Input value={config.port} onChange={e => setConfig({...config, port: e.target.value})} className="h-8 text-xs" placeholder="5432" />
+                  </div>
+                </>
+              )}
+
+              {/* ── SQLite Fields ── */}
+              {config.dialect === "sqlite" && (
+                <div className="col-span-2 space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Database File Path</Label>
+                  <Input value={config.dbname} onChange={e => setConfig({...config, dbname: e.target.value})} className="h-8 text-xs" placeholder="/path/to/database.db" />
+                </div>
+              )}
+
+              {/* ── Snowflake Fields ── */}
+              {config.dialect === "snowflake" && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Account</Label>
+                    <Input value={config.account || ""} onChange={e => setConfig({...config, account: e.target.value})} className="h-8 text-xs" placeholder="xy12345.us-east-1" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Warehouse</Label>
+                    <Input value={config.warehouse || ""} onChange={e => setConfig({...config, warehouse: e.target.value})} className="h-8 text-xs" placeholder="COMPUTE_WH" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Database</Label>
+                    <Input value={config.dbname} onChange={e => setConfig({...config, dbname: e.target.value})} className="h-8 text-xs" placeholder="ANALYTICS" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Role <span className="text-muted-foreground/50">(optional)</span></Label>
+                    <Input value={config.role || ""} onChange={e => setConfig({...config, role: e.target.value})} className="h-8 text-xs" placeholder="SYSADMIN" />
+                  </div>
+                </>
+              )}
+
+              {/* ── Databricks Fields ── */}
+              {config.dialect === "databricks" && (
+                <>
+                  <div className="col-span-2 space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Host</Label>
+                    <Input value={config.host} onChange={e => setConfig({...config, host: e.target.value})} className="h-8 text-xs" placeholder="adb-123.azuredatabricks.net" />
+                  </div>
+                  <div className="col-span-2 space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">HTTP Path</Label>
+                    <Input value={config.http_path || ""} onChange={e => setConfig({...config, http_path: e.target.value})} className="h-8 text-xs" placeholder="/sql/1.0/endpoints/abc123" />
+                  </div>
+                  <div className="col-span-2 space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Access Token</Label>
+                    <Input type="password" value={config.access_token || ""} onChange={e => setConfig({...config, access_token: e.target.value})} className="h-8 text-xs" placeholder="dapi..." />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Catalog</Label>
+                    <Input value={config.catalog || ""} onChange={e => setConfig({...config, catalog: e.target.value})} className="h-8 text-xs" placeholder="main" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Schema</Label>
+                    <Input value={config.schema_name || ""} onChange={e => setConfig({...config, schema_name: e.target.value})} className="h-8 text-xs" placeholder="default" />
+                  </div>
+                </>
+              )}
+
+              {/* ── Shared username/password (RDBMS + Snowflake) ── */}
+              {(isTraditional || config.dialect === "snowflake") && (
+                <>
+                  {config.dialect !== "snowflake" && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Database Name</Label>
+                      <Input value={config.dbname} onChange={e => setConfig({...config, dbname: e.target.value})} className="h-8 text-xs" placeholder="postgres" />
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Username</Label>
+                    <Input value={config.user} onChange={e => setConfig({...config, user: e.target.value})} className="h-8 text-xs" placeholder="postgres" />
+                  </div>
+                  <div className={`${config.dialect === "snowflake" ? "" : "col-span-2"} space-y-1.5`}>
+                    <Label className="text-xs text-muted-foreground">Password</Label>
+                    <Input type="password" value={config.password} onChange={e => setConfig({...config, password: e.target.value})} className="h-8 text-xs" placeholder="••••••••" />
+                  </div>
+                </>
+              )}
             </div>
             
             {status.type === "error" && (
@@ -228,17 +358,21 @@ export function ConnectorView() {
             <div className="grid gap-3">
               {connections.map(c => {
                 const isActive = c.alias === activeAlias;
+                const logo = DIALECT_LOGOS[c.dialect] || DIALECT_LOGOS.postgresql;
                 return (
                   <Card key={c.alias} className={`bg-card overflow-hidden transition-all ${isActive ? 'border-primary ring-1 ring-primary' : 'border-border opacity-80 hover:opacity-100 hover:border-muted-foreground/50'}`}>
                     <div className="p-3 flex items-start justify-between cursor-pointer group" onClick={() => setConfig(c as any)}>
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <img src={c.dialect === 'postgresql' ? '/postgresql-logo.svg' : c.dialect === 'sqlite' ? '/sqlite-logo.svg' : '/mysql-logo.svg'} alt={c.dialect} className="w-3.5 h-3.5 object-contain" />
+                          <img src={logo} alt={c.dialect} className="w-3.5 h-3.5 object-contain" />
                           <span className="text-sm font-medium">{c.alias}</span>
                           {isActive && <Badge className="h-5 px-1.5 text-[10px] bg-primary">Active</Badge>}
+                          {(c.dialect === "snowflake" || c.dialect === "databricks") && (
+                            <Badge variant="outline" className="h-4 px-1 text-[9px] text-blue-400 border-blue-400/30">Cloud</Badge>
+                          )}
                         </div>
                         <div className="text-[10px] text-muted-foreground font-mono">
-                          {c.dialect}://{c.user}@{c.host}:{c.port}/{c.dbname}
+                          {getConnectionDisplay(c)}
                         </div>
                       </div>
                       <Button 

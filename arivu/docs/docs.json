@@ -25,33 +25,143 @@
             ]
           },
           {
-            "group": "Dashboard Interface",
+            "group": "Dashboard",
             "pages": [
               "dashboard/overview",
-              "dashboard/connections",
-              "dashboard/llms"
+              {
+                "group": "Automations",
+                "pages": [
+                  "dashboard/automations/overview"
+                ]
+              },
+              {
+                "group": "Dashboards",
+                "pages": [
+                  "dashboard/dashboards/overview",
+                  "dashboard/dashboards/widgets",
+                  "dashboard/dashboards/integrations"
+                ]
+              },
+              {
+                "group": "Connections",
+                "pages": [
+                  "dashboard/connections/overview",
+                  {
+                    "group": "Databases",
+                    "pages": [
+                      "dashboard/connections/databases/postgresql",
+                      "dashboard/connections/databases/mysql",
+                      "dashboard/connections/databases/sqlite",
+                      "dashboard/connections/databases/snowflake"
+                    ]
+                  },
+                  {
+                    "group": "LLM Providers",
+                    "pages": [
+                      "dashboard/connections/llms/openai",
+                      "dashboard/connections/llms/anthropic",
+                      "dashboard/connections/llms/gemini",
+                      "dashboard/connections/llms/groq",
+                      "dashboard/connections/llms/ollama",
+                      "dashboard/connections/llms/deepseek",
+                      "dashboard/connections/llms/qwen"
+                    ]
+                  },
+                  "dashboard/connections/chat"
+                ]
+              },
+              {
+                "group": "Monitoring",
+                "pages": [
+                  "dashboard/monitoring/traces",
+                  "dashboard/monitoring/sessions",
+                  "dashboard/monitoring/errors",
+                  "dashboard/monitoring/rlhf"
+                ]
+              }
             ]
           },
           {
-            "group": "Python SDK",
+            "group": "SDK",
             "pages": [
-              "sdk/usage"
+              "sdk/quick-start",
+              {
+                "group": "Databases",
+                "pages": [
+                  "sdk/databases/postgresql",
+                  "sdk/databases/mysql",
+                  "sdk/databases/sqlite",
+                  "sdk/databases/snowflake",
+                  "sdk/databases/databricks"
+                ]
+              },
+              {
+                "group": "LLMs",
+                "pages": [
+                  "sdk/llms/openai",
+                  "sdk/llms/anthropic",
+                  "sdk/llms/groq",
+                  "sdk/llms/gemini",
+                  "sdk/llms/ollama"
+                ]
+              },
+              {
+                "group": "Memory",
+                "pages": [
+                  "sdk/memory/sqlite",
+                  "sdk/memory/redis"
+                ]
+              },
+              "sdk/rlhf",
+              "sdk/pipeline",
+              {
+                "group": "App Integrations",
+                "pages": [
+                  "sdk/integrations/slack",
+                  "sdk/integrations/telegram",
+                  "sdk/integrations/whatsapp",
+                  "sdk/integrations/discord",
+                  "sdk/integrations/rest"
+                ]
+              }
             ]
           },
           {
-            "group": "Core Architecture",
+            "group": "MCP",
             "pages": [
-              "architecture/pipeline",
-              "architecture/memory"
+              "mcp/overview",
+              "mcp/setup",
+              "mcp/tools",
+              "mcp/client-integration"
             ]
           },
           {
-            "group": "Integrations Ecosystem",
+            "group": "Memory",
             "pages": [
-              "integrations/overview",
-              "integrations/telegram",
-              "integrations/whatsapp",
-              "integrations/rest"
+              "memory/overview",
+              {
+                "group": "Storage Backends",
+                "pages": [
+                  "memory/sqlite",
+                  "memory/redis"
+                ]
+              },
+              "memory/session-management"
+            ]
+          },
+          {
+            "group": "Hosting & Deployment",
+            "pages": [
+              "hosting/overview",
+              "hosting/implementation",
+              {
+                "group": "Deployment Platforms",
+                "pages": [
+                  "hosting/aws",
+                  "hosting/azure",
+                  "hosting/other"
+                ]
+              }
             ]
           }
         ]

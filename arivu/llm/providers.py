@@ -32,7 +32,7 @@ Configuration — set in .env or environment:
     # Ollama needs no key — just a running local server
 
 Usage (inside pipeline nodes — unchanged):
-    from ARIVU.llm import get_llm
+    from arivu.llm import get_llm
     llm = get_llm()
     response = llm.invoke("your prompt here")
     text = response.content
@@ -97,11 +97,13 @@ class GroqProvider(BaseLLMProvider):
 
     def __init__(self, model: str = DEFAULT_MODEL, **kwargs) -> None:
         super().__init__(model)
-        from langchain_groq import ChatGroq
-        self._client = ChatGroq(
+        # Bypass langchain-groq due to 'proxies' kwarg incompatibility with pip environments
+        from langchain_openai import ChatOpenAI
+        self._client = ChatOpenAI(
             model=model,
             temperature=0,
             api_key=os.environ["GROQ_API_KEY"],
+            base_url="https://api.groq.com/openai/v1",
             **kwargs,
         )
 

@@ -1,0 +1,98 @@
+---
+title: "SQLite"
+description: "Local file-based persistence for Arivu"
+---
+
+## Overview
+
+By default, Arivu uses a local SQLite database (`arivu.db`) for all storage.
+
+<AccordionGroup>
+  <Accordion title="Pros ✅" defaultOpen>
+    - **Zero configuration** - Works out of the box
+    - **Extremely fast** for local use
+    - **No external dependencies** - Self-contained database file
+    - **Perfect for development and testing**
+  </Accordion>
+  <Accordion title="Cons ⚠️">
+    - **Not suitable for multi-worker production deployments** - Single file can cause contention
+    - **Cannot be shared across machines** - Local file only
+    - **Limited concurrent access** - Not optimized for high concurrency
+  </Accordion>
+</AccordionGroup>
+
+## Configuration
+
+<Info>SQLite requires zero configuration. Arivu automatically creates and manages the `arivu.db` file for you.</Info>
+
+<Tabs>
+  <Tab title="Default Setup">
+    ```python
+    from arivu.memory import SQLiteBackend
+
+    # SQLite is used by default
+    backend = SQLiteBackend()
+    ```
+  </Tab>
+  <Tab title="Custom Location">
+    ```python
+    from arivu.memory import SQLiteBackend
+
+    # Specify custom database location
+    backend = SQLiteBackend(database_path="/path/to/custom.db")
+    ```
+  </Tab>
+</Tabs>
+
+## Database Structure
+
+<Columns cols={3}>
+  <Card title="Session Data" icon="chat">
+    Conversation history and state for each session
+  </Card>
+  <Card title="User Context" icon="user">
+    Session metadata and configuration
+  </Card>
+  <Card title="Memory Entries" icon="database">
+    Stored memories and retrieval metadata
+  </Card>
+</Columns>
+
+Each session is isolated by `session_id` for multi-user support.
+
+## Performance Optimization
+
+<AccordionGroup>
+  <Accordion title="Storage" defaultOpen icon="hard-drive">
+    - **Local SSD recommended** - Faster disk I/O for database operations
+    - Store `arivu.db` on fast storage for better performance
+    - Monitor disk space to ensure database can grow
+  </Accordion>
+  <Accordion title="Backups" icon="backup">
+    - **Regular backups** - Keep backups of your `arivu.db` file
+    
+    ```bash
+    # Backup example
+    cp /path/to/arivu.db /backups/arivu-$(date +%Y%m%d).db
+    ```
+  </Accordion>
+  <Accordion title="Maintenance" icon="wrench">
+    - **Archive old sessions** - Move completed sessions to archive for better performance
+    
+    ```sql
+    -- Run SQLite maintenance
+    VACUUM;
+    ANALYZE;
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## When to Use SQLite
+
+Use SQLite when you:
+- Are developing locally
+- Building a single-user application
+- Need zero infrastructure overhead
+- Want the fastest local performance
+
+<Check>SQLite is the perfect choice for getting started with Arivu quickly with zero setup!</Check>

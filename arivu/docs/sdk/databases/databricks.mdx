@@ -1,0 +1,27 @@
+---
+title: "Databricks SDK"
+description: "Connect Arivu to your Databricks lakehouse catalog."
+---
+
+## SDK Configuration
+
+Integrating Databricks within your Python application is seamless. Utilize the `Arivu.connect()` static factory.
+
+<CodeGroup>
+```python python
+from arivu import Arivu
+
+db = Arivu.connect(
+    dialect="databricks",
+    host="adb-123.azuredatabricks.net",
+    http_path="/sql/1.0/endpoints/abc123",
+    access_token="dapi...",
+    catalog="main",
+    schema_name="default"
+)
+```
+</CodeGroup>
+
+<Info>
+  Setting `mode="user"` prevents Arivu from executing destructive SQL operations (like `DROP` or `UPDATE`). They will instead be held in an approval queue.
+</Info>
