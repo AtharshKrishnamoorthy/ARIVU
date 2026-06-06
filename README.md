@@ -22,9 +22,9 @@
     <a href="https://github.com/AtharshKrishnamoorthy/ARIVU/stargazers"><img src="https://img.shields.io/github/stars/AtharshKrishnamoorthy/ARIVU?style=social" alt="GitHub stars"></a>
   </p>
   
-  <div align="center">
   <!-- TODO: Paste the GitHub User Attachments video link below -->
   <video src="https://github.com/user-attachments/assets/f25b364d-f8dd-4f42-b2d7-0b261a755063" width="800" controls="controls" muted="muted" playsinline="playsinline" loop="loop" autoplay="autoplay"></video>
+
 </div>
 
 ---
