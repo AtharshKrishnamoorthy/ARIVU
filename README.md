@@ -22,9 +22,8 @@
     <a href="https://github.com/AtharshKrishnamoorthy/ARIVU/stargazers"><img src="https://img.shields.io/github/stars/AtharshKrishnamoorthy/ARIVU?style=social" alt="GitHub stars"></a>
   </p>
   
-  <br />
-
-  <video src="https://github.com/AtharshKrishnamoorthy/ARIVU/raw/main/arivu/docs/images/motion-video.mp4" width="800" controls autoplay loop muted></video>
+  <div align="center">
+  <video src="https://arivu-omega.vercel.app/motion-video.mp4" width="800" controls autoplay loop muted></video>
 </div>
 
 ---
