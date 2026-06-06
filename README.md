@@ -23,7 +23,7 @@
   </p>
   
   <div align="center">
-  <video src="https://arivu-omega.vercel.app/motion-video.mp4" width="800" controls autoplay loop muted></video>
+  <video src="./arivu/docs/images/motion-video.mp4" width="800" controls="controls" muted="muted" playsinline="playsinline" loop="loop" autoplay="autoplay"></video>
 </div>
 
 ---
