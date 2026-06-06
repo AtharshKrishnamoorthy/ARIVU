@@ -8,6 +8,7 @@ from ....memory.store import (
     set_active_connection
 )
 from ....connection.core import Arivu
+from ..dependencies import get_cached_connection
 
 logger = logging.getLogger("arivu.dashboard.server.connections")
 
@@ -70,9 +71,8 @@ def api_set_active_connection(request: Request, payload: dict = Body(...)):
         raise HTTPException(status_code=404, detail="Connection alias not found")
         
     try:
-        connect_args = {k: v for k, v in config.items() if k != "alias"}
-        new_db = Arivu.connect(**connect_args)
-        request.app.state.arivu_db = new_db
+        # Pre-warm the cache for this alias (will connect if not already in pool)
+        get_cached_connection(request, alias)
         set_active_connection(alias)
         return {"status": "success"}
     except Exception as e:

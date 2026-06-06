@@ -11,13 +11,17 @@ __pycache__/
 
 # ── Secrets ───────────────────────────────────────────────────────────────────
 .env
-arivu/.env
 *.env
+arivu/.env
+
+# ── Claude / AI IDE configs ────────────────────────────────────────────────────
+.claude/
 
 # ── PyPI Build Artifacts ──────────────────────────────────────────────────────
 dist/
 build/
 arivu-*/
+arivu_ai.egg-info/
 strip_license_file.py
 
 # ── Node.js / Next.js Dashboard ───────────────────────────────────────────────
@@ -31,6 +35,15 @@ node_modules/
 .DS_Store
 Thumbs.db
 .vscode/settings.json
+*.tsbuildinfo
 
 .arivu_data/
 .arivu_data/**
+
+.pytest_cache/
+.pytest_cache/**
+
+.tmp/
+.tmp/**
+
+.venv_test/

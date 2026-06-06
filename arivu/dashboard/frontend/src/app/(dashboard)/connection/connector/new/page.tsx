@@ -100,7 +100,7 @@ export default function NewConnectionPage() {
             Back to Connections
           </Button>
           <Button size="sm" className="h-8 text-xs"
-            onClick={() => router.push("/connection/chat")}>
+            onClick={() => router.push(`/db/${encodeURIComponent(config.alias)}/chat`)}>
             Start Chatting <ArrowRight className="w-3 h-3 ml-1" />
           </Button>
         </div>
@@ -317,8 +317,8 @@ export default function NewConnectionPage() {
               {(saving || activating) && (
                 <div className="space-y-2">
                   {[
-                    { label: "Saving configuration", done: true },
-                    { label: "Initialising connection", done: activating },
+                    { label: "Saving configuration", done: !saving },
+                    { label: "Initialising connection", done: activating && !saving },
                     { label: "Setting as active", done: false },
                   ].map((item, i) => (
                     <div key={i} className="flex items-center gap-2 text-xs">

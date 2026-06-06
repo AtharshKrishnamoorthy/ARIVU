@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   Table,
@@ -16,7 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { Session } from "../../../services/types";
-import { Database, Search, Eye, LayoutDashboard, MessageSquare } from "lucide-react";
+import { Search, Eye, LayoutDashboard, MessageSquare, Database } from "lucide-react";
 
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
@@ -57,7 +57,7 @@ export function SessionsTable({ sessions, loading, onSelect, globalSearch = "" }
       (s.last_question || "").toLowerCase().includes(query)
   );
 
-  const columns: ColumnDef<Session>[] = [
+  const columns = useMemo<ColumnDef<Session>[]>(() => [
     {
       accessorKey: "session_id",
       header: "Session ID",
@@ -70,6 +70,7 @@ export function SessionsTable({ sessions, loading, onSelect, globalSearch = "" }
     {
       accessorKey: "dialect",
       header: "Dialect",
+      meta: { className: "hidden md:table-cell" },
       cell: ({ row }) => {
         const dialect = row.original.dialect;
         return dialect ? (
@@ -89,6 +90,7 @@ export function SessionsTable({ sessions, loading, onSelect, globalSearch = "" }
     {
       accessorKey: "interface",
       header: "Interface",
+      meta: { className: "hidden lg:table-cell" },
       cell: ({ row }) => {
         const intf = row.original.interface || "dashboard";
         const Icon = intf === "dashboard" ? LayoutDashboard : MessageSquare;
@@ -108,6 +110,7 @@ export function SessionsTable({ sessions, loading, onSelect, globalSearch = "" }
     {
       accessorKey: "error_count",
       header: "Errors",
+      meta: { className: "hidden md:table-cell" },
       cell: ({ row }) => {
         const errors = row.original.error_count;
         return errors > 0 ? (
@@ -131,6 +134,7 @@ export function SessionsTable({ sessions, loading, onSelect, globalSearch = "" }
     {
       accessorKey: "last_ts",
       header: "Last Active",
+      meta: { className: "hidden md:table-cell" },
       cell: ({ row }) => (
         <span className="text-[11px] text-muted-foreground font-mono whitespace-nowrap">
           {fmtTs(row.original.last_ts)}
@@ -153,7 +157,7 @@ export function SessionsTable({ sessions, loading, onSelect, globalSearch = "" }
         </Button>
       ),
     },
-  ];
+  ], [onSelect]);
 
   return (
     <div className="space-y-4">

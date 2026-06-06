@@ -47,11 +47,11 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* ── Light mode — clean white Vercel-style ── */
+/* ── Light mode — clean white, no grey ── */
 :root {
   --background: #ffffff;
   --foreground: #0a0a0a;
-  --card: #fafafa;
+  --card: #ffffff;
   --card-foreground: #0a0a0a;
   --popover: #ffffff;
   --popover-foreground: #0a0a0a;
@@ -73,7 +73,7 @@
   --chart-4: #ef4444;
   --chart-5: #a78bfa;
   --radius: 0.5rem;
-  --sidebar: #fafafa;
+  --sidebar: #ffffff;
   --sidebar-foreground: #0a0a0a;
   --sidebar-primary: #0a0a0a;
   --sidebar-primary-foreground: #fafafa;
@@ -83,39 +83,39 @@
   --sidebar-ring: #a3a3a3;
 }
 
-/* ── Dark mode — true black Vercel-style ── */
+/* ── Dark mode — zinc grey outer with dark cards ── */
 .dark {
-  --background: #000000;
-  --foreground: #ededed;
-  --card: #0a0a0a;
-  --card-foreground: #ededed;
-  --popover: #0a0a0a;
-  --popover-foreground: #ededed;
-  --primary: #ffffff;
-  --primary-foreground: #000000;
-  --secondary: #111111;
-  --secondary-foreground: #ededed;
-  --muted: #111111;
-  --muted-foreground: #888888;
-  --accent: #111111;
-  --accent-foreground: #ededed;
+  --background: #18181b;
+  --foreground: #fafafa;
+  --card: #0f0f11;
+  --card-foreground: #fafafa;
+  --popover: #0f0f11;
+  --popover-foreground: #fafafa;
+  --primary: #fafafa;
+  --primary-foreground: #09090b;
+  --secondary: #1f1f23;
+  --secondary-foreground: #fafafa;
+  --muted: #1f1f23;
+  --muted-foreground: #a1a1aa;
+  --accent: #1f1f23;
+  --accent-foreground: #fafafa;
   --destructive: #ef4444;
-  --border: #1a1a1a;
-  --input: #1a1a1a;
-  --ring: #333333;
+  --border: #27272a;
+  --input: #27272a;
+  --ring: #3f3f46;
   --chart-1: #3b82f6;
   --chart-2: #22c55e;
   --chart-3: #f59e0b;
   --chart-4: #ef4444;
   --chart-5: #a78bfa;
-  --sidebar: #0a0a0a;
-  --sidebar-foreground: #ededed;
-  --sidebar-primary: #ffffff;
-  --sidebar-primary-foreground: #000000;
-  --sidebar-accent: #111111;
-  --sidebar-accent-foreground: #ededed;
-  --sidebar-border: #1a1a1a;
-  --sidebar-ring: #333333;
+  --sidebar: #18181b;
+  --sidebar-foreground: #fafafa;
+  --sidebar-primary: #fafafa;
+  --sidebar-primary-foreground: #09090b;
+  --sidebar-accent: #1f1f23;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: #27272a;
+  --sidebar-ring: #3f3f46;
 }
 
 @layer base {
@@ -128,6 +128,30 @@
   html {
     @apply font-sans;
   }
+}
+
+/* ── Focus-visible for keyboard navigation ── */
+*:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+button:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* ── Card border standardization ── */
+.card, [class*="Card"] {
+  @apply border-border;
+}
+
+/* ── Consistent empty state styling ── */
+.empty-state {
+  @apply flex flex-col items-center justify-center py-20 text-center border-2 border-dashed border-border/80 bg-muted/30 rounded-xl;
 }
 
 /* ── Pulsing live dot ── */
@@ -219,4 +243,33 @@
 .react-grid-item [class*="ThemeProvider"] {
   width: 100% !important;
   height: 100% !important;
+}
+
+/* ── Rich Text Editor Typography ── */
+.prose {
+  max-width: none;
+}
+.prose h2 {
+  @apply text-xl font-bold mt-6 mb-3 text-foreground;
+}
+.prose blockquote {
+  @apply border-l-4 border-primary/30 pl-4 italic my-4 text-muted-foreground bg-muted/20 py-2 pr-2 rounded-r;
+}
+.prose ul {
+  @apply list-disc list-inside my-3 space-y-1;
+}
+.prose ol {
+  @apply list-decimal list-inside my-3 space-y-1;
+}
+.prose p {
+  @apply my-3 leading-relaxed;
+}
+.prose strong {
+  @apply font-bold text-foreground;
+}
+.prose em {
+  @apply italic;
+}
+.prose u {
+  @apply underline;
 }

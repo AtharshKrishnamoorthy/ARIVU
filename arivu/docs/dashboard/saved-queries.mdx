@@ -1,0 +1,41 @@
+---
+title: "Saved Queries"
+description: "Bookmark and manage your most valuable SQL queries."
+---
+
+import { Frame, Steps } from "mintlify/components";
+
+<Frame>
+  <img src="/images/query-dash.png" alt="Saved Queries Dashboard" />
+</Frame>
+
+As you interact with Arivu's Chat interface, the LLM generates SQL queries to answer your questions. **Saved Queries** allows you to bookmark these generated queries so you don't lose the exact SQL that produced a perfect result.
+
+## Managing Saved Queries
+
+Access the **Saved Queries** section from your database workspace sidebar. This page acts as your personal query library for the active database.
+
+<Steps>
+  <Step title="Browse & Search">
+    The dashboard displays all your bookmarked queries as cards. Use the search bar to filter by the query's natural language question, the raw SQL, or your custom notes.
+  </Step>
+  <Step title="View Details">
+    Clicking on a query card opens its detailed view, showing exactly what question was asked and what SQL was executed.
+  </Step>
+  <Step title="Add Notes">
+    Each saved query has a Rich Text Editor attached. You can add context, documentation, or explanations for why this query is useful.
+  </Step>
+</Steps>
+
+<Frame>
+  <img src="/images/query-page.png" alt="Saved Query Details" />
+</Frame>
+
+## Saving a Query
+
+Queries are saved directly from the Chat interface.
+
+1. Ask a question in the **Chat**.
+2. Once the pipeline finishes and returns the SQL along with the data, look at the query response card.
+3. Click the **Save (Bookmark)** icon on the card.
+4. The query is instantly added to your Saved Queries library for that database.

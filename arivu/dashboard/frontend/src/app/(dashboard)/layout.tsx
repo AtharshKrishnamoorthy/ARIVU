@@ -2,6 +2,7 @@
 
 import { DashboardDataProvider, useDashboard } from "./data-context";
 import { DashboardShell } from "./shell";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 /* Thesys C1 Generative UI styles (charts, tables, cards) */
 import "@crayonai/react-ui/styles/index.css";
@@ -13,8 +14,10 @@ function ShellWithData({ children }: { children: React.ReactNode }) {
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <DashboardDataProvider>
-      <ShellWithData>{children}</ShellWithData>
-    </DashboardDataProvider>
+    <ErrorBoundary>
+      <DashboardDataProvider>
+        <ShellWithData>{children}</ShellWithData>
+      </DashboardDataProvider>
+    </ErrorBoundary>
   );
 }

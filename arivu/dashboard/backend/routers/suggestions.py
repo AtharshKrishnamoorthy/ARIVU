@@ -1,20 +1,33 @@
 """
 arivu.dashboard.backend.routers.suggestions
-──────────────────────────────────────────
+─────────────────────────────────────────
 Dynamic, schema-aware query suggestions for the UI.
 """
 
+import os
 from typing import Optional
 import json
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from ..dependencies import get_db
 from ....connection.core import Arivu
 
 router = APIRouter(prefix="/api/suggestions")
 
+_RATE_LIMIT = os.environ.get("ARIVU_SUGGESTIONS_RATE_LIMIT", "20/minute")
+
+try:
+    from slowapi import Limiter
+    from slowapi.util import get_remote_address
+    _limiter = Limiter(key_func=get_remote_address)
+    _rate_limited = _limiter.limit(_RATE_LIMIT)
+except ImportError:
+    _rate_limited = lambda fn: fn
+
 
 @router.get("")
+@_rate_limited
 async def get_suggestions(
+    request: Request,
     context: Optional[str] = Query(None, description="Previous question to generate follow-ups for"),
     db: Arivu = Depends(get_db)
 ):

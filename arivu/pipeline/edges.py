@@ -84,11 +84,16 @@ def route_after_admin_approval(state: GraphState) -> str:
 
 def route_after_db_execution(state: GraphState) -> str:
     """
-    error set → error_boundary
-    no rows   → response_generator  (let it explain "no results found")
-    <= 200 rows -> response_generator (short-circuit FAISS ML layer)
-    > 200 rows  → result_embedder
+    If db execution produced verifier feedback (retriable execution error),
+    route back to SQL generator so the LLM can correct the query.
+    Otherwise proceed with result handling logic.
     """
+    # If execution surfaced a verifier error, attempt SQL regeneration (retries enforced)
+    if state.verifier_error:
+        if state.retry_count >= state.max_retries:
+            return "error_boundary"
+        return "sql_generator"
+
     if state.has_error():
         return "error_boundary"
     if not state.raw_result:

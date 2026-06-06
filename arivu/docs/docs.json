@@ -28,20 +28,7 @@
             "group": "Dashboard",
             "pages": [
               "dashboard/overview",
-              {
-                "group": "Automations",
-                "pages": [
-                  "dashboard/automations/overview"
-                ]
-              },
-              {
-                "group": "Dashboards",
-                "pages": [
-                  "dashboard/dashboards/overview",
-                  "dashboard/dashboards/widgets",
-                  "dashboard/dashboards/integrations"
-                ]
-              },
+
               {
                 "group": "Connections",
                 "pages": [
@@ -67,7 +54,29 @@
                       "dashboard/connections/llms/qwen"
                     ]
                   },
-                  "dashboard/connections/chat"
+                  "dashboard/connections/chat",
+                  "dashboard/connections/integrations"
+                ]
+              },
+              {
+                "group": "Workspace Tools",
+                "pages": [
+                  "dashboard/explorer",
+                  "dashboard/saved-queries",
+                  {
+                    "group": "Dashboards",
+                    "pages": [
+                      "dashboard/dashboards/overview",
+                      "dashboard/dashboards/manual-charts",
+                      "dashboard/dashboards/chat-charts"
+                    ]
+                  },
+                  {
+                    "group": "Automations",
+                    "pages": [
+                      "dashboard/automations/overview"
+                    ]
+                  }
                 ]
               },
               {

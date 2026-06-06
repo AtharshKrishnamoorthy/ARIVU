@@ -18,6 +18,12 @@ export interface ChatMessage {
   error?: string | null;
   ts: number;
   responseMs?: number;  // latency in ms for bot messages
+  results_truncated?: boolean;
+  limits?: {
+    max_query_chars: number;
+    max_result_rows: number;
+    max_retries: number;
+  };
   /* ── Thesys C1 Generative UI fields ── */
   raw_result?: Record<string, unknown>[] | null;
   has_tabular_data?: boolean;
@@ -139,4 +145,64 @@ export interface DashboardStats {
 export interface HealthResponse {
   status: string;
   ts: number;
+}
+
+/** GET /api/config or /api/chat/config response — rate-limit transparency. */
+export interface RateLimitConfig {
+  limits: {
+    max_query_chars: number;
+    max_result_rows: number;
+    max_retries: number;
+  };
+}
+
+/** Per-query usage stats returned in chat/POST /api/chat response body. */
+export interface QueryUsage {
+  results_truncated: boolean;
+  limits: {
+    max_query_chars: number;
+    max_result_rows: number;
+    max_retries: number;
+  };
+  query_chars: number;
+  result_rows: number;
+}
+
+/** POST /api/chat response — full chat message response with limits. */
+export interface ChatResponse {
+  response: string;           // LLM response text
+  sql: string;               // Generated SQL query
+  error: string | null;      // Error message if failed
+  raw_result: Record<string, unknown>[] | null;  // Query results
+  has_tabular_data: boolean;  // Whether raw_result contains tabular data
+  results_truncated: boolean; // Whether results were truncated
+  limits: {
+    max_query_chars: number;
+    max_result_rows: number;
+    max_retries: number;
+  };
+  _cached?: boolean;         // Indicates if result came from cache
+}
+
+/** A saved query bookmark with optional notes. */
+export interface SavedQuery {
+  id: string;                  // UUID
+  session_id: string;          // originating chat session
+  query: string;               // natural language question
+  sql: string;                 // generated SQL
+  notes: string;               // user annotations / documentation
+  created_at: number;          // timestamp (seconds)
+  updated_at: number;          // timestamp (seconds)
+}
+
+/** GET /api/saved-queries response. */
+export interface SavedQueriesResponse {
+  status: string;
+  data: SavedQuery[];
+}
+
+/** GET /api/saved-queries/:id response. */
+export interface SavedQueryResponse {
+  status: string;
+  data: SavedQuery;
 }

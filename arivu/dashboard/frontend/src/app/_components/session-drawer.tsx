@@ -8,9 +8,16 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { fetchSessionDetail } from "../../../services/api";
 import type { SessionDetail } from "../../../services/types";
 import { Database, MessageSquare, AlertTriangle, ThumbsUp, ThumbsDown, Clock, Hash } from "lucide-react";
@@ -82,40 +89,41 @@ export function SessionDrawer({ sessionId, open, onClose }: SessionDrawerProps) 
   const dialect = firstTrace?.dialect || "";
   const connMeta = firstTrace?.connection_meta || {};
 
-  return (
-    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent
-        className="w-full sm:w-[680px] sm:max-w-[680px] lg:w-[800px] lg:max-w-[800px] bg-background border-l border-border overflow-y-auto p-0"
-        style={{ maxWidth: "min(800px, 95vw)" }}
-      >
-        {/* ── Sticky header ── */}
-        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border px-6 pt-6 pb-4">
-          <SheetHeader>
-            <div className="flex items-center gap-2 mb-1">
-              <Badge variant="outline" className="text-primary/70 border-primary/20 bg-primary/5 text-[10px] px-2 py-0.5">
-                Session
-              </Badge>
-              {dialect && (
-                <div className="flex items-center gap-1.5">
-                  <img
-                    src={DIALECT_LOGOS[dialect] || DIALECT_LOGOS.postgresql}
-                    alt={dialect}
-                    className="w-3.5 h-3.5 object-contain"
-                  />
-                  <span className="text-[10px] text-muted-foreground capitalize">{dialect}</span>
-                </div>
-              )}
-            </div>
-            <SheetTitle className="text-sm font-semibold text-foreground">
-              Session Detail
-            </SheetTitle>
-            <p className="font-mono text-[10px] text-muted-foreground/60 mt-1 break-all">
-              {sessionId || "—"}
-            </p>
-          </SheetHeader>
-        </div>
+  const isDesktop = useMediaQuery("(min-width: 768px)");
 
-        {/* ── Content ── */}
+  const headerContent = (
+    <>
+      <div className="flex items-center gap-2 mb-1">
+        <Badge variant="outline" className="text-primary/70 border-primary/20 bg-primary/5 text-[10px] px-2 py-0.5">
+          Session
+        </Badge>
+        {dialect && (
+          <div className="flex items-center gap-1.5">
+            <img
+              src={DIALECT_LOGOS[dialect] || DIALECT_LOGOS.postgresql}
+              alt={dialect}
+              className="w-3.5 h-3.5 object-contain"
+            />
+            <span className="text-[10px] text-muted-foreground capitalize">{dialect}</span>
+          </div>
+        )}
+      </div>
+      {isDesktop ? (
+        <SheetTitle className="text-sm font-semibold text-foreground">
+          Session Detail
+        </SheetTitle>
+      ) : (
+        <DrawerTitle className="text-sm font-semibold text-foreground mt-2">
+          Session Detail
+        </DrawerTitle>
+      )}
+      <p className="font-mono text-[10px] text-muted-foreground/60 mt-1 break-all">
+        {sessionId || "—"}
+      </p>
+    </>
+  );
+
+  const mainContent = (
         <div className="px-6 py-5">
           {loading ? (
             <div className="space-y-4">
@@ -314,7 +322,34 @@ export function SessionDrawer({ sessionId, open, onClose }: SessionDrawerProps) 
             </AnimatePresence>
           )}
         </div>
-      </SheetContent>
-    </Sheet>
+  );
+
+  if (isDesktop) {
+    return (
+      <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+        <SheetContent
+          className="w-full sm:w-[680px] sm:max-w-[680px] lg:w-[800px] lg:max-w-[800px] bg-background border-l border-border overflow-y-auto p-0"
+          style={{ maxWidth: "min(800px, 95vw)" }}
+        >
+          <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border px-6 pt-6 pb-4">
+            <SheetHeader className="text-left">{headerContent}</SheetHeader>
+          </div>
+          {mainContent}
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  return (
+    <Drawer open={open} onOpenChange={(v) => !v && onClose()}>
+      <DrawerContent className="bg-background border-border max-h-[85vh] rounded-t-[1.5rem] flex flex-col overflow-hidden">
+        <div className="sticky top-0 z-10 bg-background border-b border-border px-6 pt-4 pb-4 shrink-0">
+          <DrawerHeader className="p-0 text-left">{headerContent}</DrawerHeader>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {mainContent}
+        </div>
+      </DrawerContent>
+    </Drawer>
   );
 }

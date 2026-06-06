@@ -120,6 +120,7 @@ def get_compiled_graph():
         "db_execution",
         route_after_db_execution,
         {
+            "sql_generator":       "sql_generator",       # retry loop for retriable errors
             "result_embedder":     "result_embedder",
             "response_generator":  "response_generator",  # empty result fast-path
             "error_boundary":      "error_boundary",

@@ -1,7 +1,8 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { ArrowRight, Terminal, Database, Zap, Code2, Blocks, Bot, GitBranch } from "lucide-react";
+import { useState, useEffect } from "react";
+import { motion, useScroll, useTransform, useSpring, AnimatePresence } from "framer-motion";
+import { ArrowRight, Terminal, Database, Zap, Code2, Blocks, Bot, GitBranch, LayoutDashboard } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import ArchitectureDiagram from "./components/ArchitectureDiagram";
@@ -68,72 +69,72 @@ const features = [
 ];
 
 const colorMap: Record<string, { bg: string; text: string; ring: string }> = {
-  blue:    { bg: "bg-blue-500/10",    text: "text-blue-400",    ring: "ring-blue-500/20" },
+  blue: { bg: "bg-blue-500/10", text: "text-blue-400", ring: "ring-blue-500/20" },
   emerald: { bg: "bg-emerald-500/10", text: "text-emerald-400", ring: "ring-emerald-500/20" },
-  amber:   { bg: "bg-amber-500/10",   text: "text-amber-400",   ring: "ring-amber-500/20" },
-  purple:  { bg: "bg-purple-500/10",  text: "text-purple-400",  ring: "ring-purple-500/20" },
-  pink:    { bg: "bg-pink-500/10",    text: "text-pink-400",    ring: "ring-pink-500/20" },
-  rose:    { bg: "bg-rose-500/10",    text: "text-rose-400",    ring: "ring-rose-500/20" },
+  amber: { bg: "bg-amber-500/10", text: "text-amber-400", ring: "ring-amber-500/20" },
+  purple: { bg: "bg-purple-500/10", text: "text-purple-400", ring: "ring-purple-500/20" },
+  pink: { bg: "bg-pink-500/10", text: "text-pink-400", ring: "ring-pink-500/20" },
+  rose: { bg: "bg-rose-500/10", text: "text-rose-400", ring: "ring-rose-500/20" },
 };
 
 const integrations = [
-  { name: "OpenAI",       src: "/openai-svgrepo-com.svg",   invert: true },
-  { name: "Anthropic",    src: "/anthropic-logo.png",        invert: false },
-  { name: "Groq",         src: "/groq-logo.png",             invert: false },
-  { name: "DeepSeek",     src: "/deepseek-color.svg",        invert: false },
-  { name: "Ollama",       src: "/ollama-logo-dark.svg",      invert: false },
-  { name: "Hugging Face", src: "/hf-logo.svg",               invert: false },
-  { name: "Alibaba",      src: "/alibabacloud-color.svg",    invert: false },
+  { name: "OpenAI", src: "/openai-svgrepo-com.svg", invert: true },
+  { name: "Anthropic", src: "/anthropic-logo.png", invert: false },
+  { name: "Groq", src: "/groq-logo.png", invert: false },
+  { name: "DeepSeek", src: "/deepseek-color.svg", invert: false },
+  { name: "Ollama", src: "/ollama-logo-dark.svg", invert: false },
+  { name: "Hugging Face", src: "/hf-logo.svg", invert: false },
+  { name: "Alibaba", src: "/alibabacloud-color.svg", invert: false },
 ];
 
 const databases = [
   { name: "PostgreSQL", src: "/postgresql-logo.svg", invert: false },
-  { name: "MySQL",      src: "/mysql-logo.svg",       invert: false },
-  { name: "SQLite",     src: "/sqlite-logo.svg",      invert: false },
-  { name: "Databricks", src: "/databricks.png",       invert: false },
-  { name: "Snowflake",  src: "/snowflake.svg",        invert: false },
+  { name: "MySQL", src: "/mysql-logo.svg", invert: false },
+  { name: "SQLite", src: "/sqlite-logo.svg", invert: false },
+  { name: "Databricks", src: "/databricks.png", invert: false },
+  { name: "Snowflake", src: "/snowflake.svg", invert: false },
 ];
 
 const platforms = [
-  { name: "Slack",    src: "/slack-svgrepo-com.svg",    invert: false },
-  { name: "Discord",  src: "/discord-svgrepo-com.svg",  invert: false },
+  { name: "Slack", src: "/slack-svgrepo-com.svg", invert: false },
+  { name: "Discord", src: "/discord-svgrepo-com.svg", invert: false },
   { name: "Telegram", src: "/telegram-svgrepo-com.svg", invert: false },
   { name: "WhatsApp", src: "/whatsapp-svgrepo-com.svg", invert: false },
-  { name: "REST API", src: "/api-logo.svg",              invert: true },
+  { name: "REST API", src: "/api-logo.svg", invert: true },
 ];
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function LogoGrid({ items, cols }: { items: typeof databases; cols: number }) {
+function LogoGrid({ items }: { items: typeof databases; cols?: number }) {
+  // Duplicate items 4 times to ensure a seamless infinite scroll regardless of screen width
+  const duplicatedItems = [...items, ...items, ...items, ...items];
+
   return (
-    <motion.div
-      className={`grid gap-6 items-center justify-items-center`}
-      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
-      variants={stagger}
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, margin: "-10%" }}
-    >
-      {items.map((logo) => (
-        <motion.div
-          key={logo.name}
-          variants={itemAnim}
-          className="flex flex-col items-center gap-3 group"
-        >
-          <Image
-            src={logo.src}
-            alt={logo.name}
-            width={40}
-            height={40}
-            className={`object-contain ${logo.invert ? "invert opacity-50" : "opacity-60"} group-hover:opacity-100 transition-opacity duration-300`}
-            unoptimized
-          />
-          <span className="text-[10px] font-medium text-white/35 group-hover:text-white/60 transition-colors tracking-wide">
-            {logo.name}
-          </span>
-        </motion.div>
-      ))}
-    </motion.div>
+    <div className="relative w-full overflow-hidden flex py-4">
+      <div className="flex items-center gap-16 md:gap-24 animate-marquee w-max px-8">
+        {duplicatedItems.map((logo, idx) => (
+          <div
+            key={`${logo.name}-${idx}`}
+            className="flex flex-col items-center gap-3 group shrink-0"
+          >
+            <Image
+              src={logo.src}
+              alt={logo.name}
+              width={40}
+              height={40}
+              className={`object-contain ${logo.invert ? "invert opacity-50" : "opacity-60"} group-hover:opacity-100 transition-opacity duration-300`}
+              unoptimized
+            />
+            <span className="text-[10px] font-medium text-white/35 group-hover:text-white/60 transition-colors tracking-wide">
+              {logo.name}
+            </span>
+          </div>
+        ))}
+      </div>
+      {/* Edge gradient masks to make it fade smoothly */}
+      <div className="pointer-events-none absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-black via-black/80 to-transparent" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-black via-black/80 to-transparent" />
+    </div>
   );
 }
 
@@ -142,6 +143,186 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
     <span className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[10px] font-mono uppercase tracking-widest text-white/40 border border-white/8 bg-white/[0.03] mb-5">
       {children}
     </span>
+  );
+}
+
+// ── Dashboard Mockup ────────────────────────────────────────────────────────
+function DashboardMockup() {
+  const { scrollYProgress } = useScroll({
+    offset: ["start end", "center center"],
+  });
+  const rotateX = useTransform(scrollYProgress, [0, 1], [15, 0]);
+  const scale = useTransform(scrollYProgress, [0, 1], [0.95, 1]);
+
+  const springRotateX = useSpring(rotateX, { stiffness: 100, damping: 30 });
+  const springScale = useSpring(scale, { stiffness: 100, damping: 30 });
+
+  return (
+    <motion.div
+      style={{
+        rotateX: springRotateX,
+        scale: springScale,
+        boxShadow: "0 30px 100px -20px rgba(59,130,246,0.3)",
+      }}
+      className="w-full max-w-6xl rounded-xl md:rounded-2xl border border-white/10 bg-[#0a0a0a] overflow-hidden relative shadow-2xl mx-auto perspective-[2000px] flex items-center justify-center"
+    >
+      <img src="/dashboard-db-new.png" alt="Arivu Dashboard" className="w-full h-auto object-contain" />
+      <div className="absolute inset-0 ring-1 ring-inset ring-white/10 rounded-xl md:rounded-2xl pointer-events-none" />
+    </motion.div>
+  );
+}
+
+// ── Animated Terminal ───────────────────────────────────────────────────────
+const fullCodeText = `from arivu import Arivu
+
+# Initialize the engine
+db = Arivu.connect(
+  host="postgres",
+  port="5432",
+  user="arivu",
+  password="[PASSWORD]",
+  dbname="postgres",
+  dialect="postgresql",
+  mode="admin",
+  ttl="3600",
+)
+
+# Run AI pipeline
+
+from arivu.pipeline import run_pipeline
+input = db.query("What are the top 5 highest grossing customers?")
+result = run_pipeline(input)
+
+# View response
+
+print(result.response)
+print(result.sql)
+print(result.success)
+print(result.trace_events)`;
+
+const highlightCode = (str: string) => {
+  // Use single quotes for HTML attributes to prevent the regex from matching its own injected HTML
+  return str
+    .replace(/(".*?")/g, "<span class='text-amber-300/80'>$1</span>")
+    .replace(/\b(from|import|True)\b/g, "<span class='text-sky-400'>$1</span>")
+    .replace(/\b(Arivu|app|q|response)\b/g, "<span class='text-white/90'>$1</span>")
+    .replace(/\.(connect|query|run_pipeline)\b/g, ".<span class='text-emerald-400'>$1</span>")
+    .replace(/(#.*)/g, "<span class='text-white/30'>$1</span>")
+    .replace(/\b(print)\b/g, "<span class='text-purple-400'>$1</span>");
+};
+
+function AnimatedTerminal() {
+  const [typedText, setTypedText] = useState("");
+
+  useEffect(() => {
+    let i = 0;
+    const interval = setInterval(() => {
+      setTypedText(fullCodeText.slice(0, i));
+      i++;
+      if (i > fullCodeText.length) clearInterval(interval);
+    }, 12); // Fast character typing speed
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 32 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -32 }}
+      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      className="rounded-xl md:rounded-2xl border border-white/8 bg-[#0a0a0a] overflow-hidden w-full max-w-4xl mx-auto shadow-2xl"
+    >
+      <div className="flex items-center justify-between px-5 py-4 border-b border-white/6 bg-white/[0.01]">
+        <div className="flex gap-2">
+          <div className="w-3.5 h-3.5 rounded-full bg-red-500/40 border border-red-500/50" />
+          <div className="w-3.5 h-3.5 rounded-full bg-amber-500/40 border border-amber-500/50" />
+          <div className="w-3.5 h-3.5 rounded-full bg-emerald-500/40 border border-emerald-500/50" />
+        </div>
+        <span className="font-mono text-xs text-white/30 tracking-wider flex items-center gap-2">
+          <Terminal className="w-3.5 h-3.5" /> main.py
+        </span>
+        <div className="w-14" />
+      </div>
+      <div className="p-6 md:p-8 overflow-x-auto h-[400px] text-[13px] md:text-[15px] font-mono leading-relaxed text-white/70 whitespace-pre">
+        <span dangerouslySetInnerHTML={{ __html: highlightCode(typedText) }} />
+        <motion.span
+          animate={{ opacity: [1, 0] }}
+          transition={{ repeat: Infinity, duration: 0.8 }}
+          className="inline-block w-2.5 h-5 bg-white/60 translate-y-1 ml-1"
+        />
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Product Showcase Toggle ──────────────────────────────────────────────────
+function ProductShowcase() {
+  const [activeTab, setActiveTab] = useState<"dashboard" | "sdk">("dashboard");
+
+  return (
+    <section className="w-full px-4 sm:px-6 pb-28 pt-8 flex flex-col items-center">
+      {/* Content Area */}
+      <div className="w-full relative min-h-[250px] md:min-h-[400px] flex justify-center mb-8">
+        <AnimatePresence mode="wait">
+          {activeTab === "dashboard" ? (
+            <motion.div
+              key="dashboard"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4 }}
+              className="w-full max-w-5xl aspect-video rounded-md overflow-hidden border border-white/10 shadow-[0_0_80px_rgba(255,255,255,0.05)] bg-black/50"
+            >
+              <video
+                src="/motion-video.mp4"
+                autoPlay
+                loop
+                muted
+                playsInline
+                controls
+                className="w-full h-full object-cover"
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="sdk"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4 }}
+              className="w-full max-w-6xl"
+            >
+              <AnimatedTerminal />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Toggle Tab */}
+      <div className="flex items-center p-1.5 bg-white/[0.03] border border-white/10 rounded-full mt-4 backdrop-blur-md shadow-2xl relative z-30">
+        <button
+          onClick={() => setActiveTab("dashboard")}
+          className={`relative p-2 rounded-full flex items-center justify-center transition-colors duration-300 ${activeTab === "dashboard" ? "text-black" : "text-white/50 hover:text-white"}`}
+          title="Dashboard"
+        >
+          {activeTab === "dashboard" && (
+            <motion.div layoutId="activeTab" className="absolute inset-0 bg-white rounded-full shadow-md" transition={{ type: "spring", stiffness: 300, damping: 25 }} />
+          )}
+          <LayoutDashboard className="relative z-10 w-5 h-5" />
+        </button>
+        <button
+          onClick={() => setActiveTab("sdk")}
+          className={`relative p-2 rounded-full flex items-center justify-center transition-colors duration-300 ${activeTab === "sdk" ? "text-black" : "text-white/50 hover:text-white"}`}
+          title="Python SDK"
+        >
+          {activeTab === "sdk" && (
+            <motion.div layoutId="activeTab" className="absolute inset-0 bg-white rounded-full shadow-md" transition={{ type: "spring", stiffness: 300, damping: 25 }} />
+          )}
+          <Code2 className="relative z-10 w-5 h-5" />
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -165,7 +346,7 @@ export default function HomePage() {
           <motion.div variants={itemAnim} className="mb-6 flex justify-center">
             <span className="inline-flex items-center rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-white/70 border border-white/10 bg-white/5 backdrop-blur-md">
               <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 mr-2 shrink-0 animate-pulse" />
-              v0.2 Open Source Release
+              v0.3 Open Source Release
             </span>
           </motion.div>
 
@@ -207,72 +388,9 @@ export default function HomePage() {
             </Link>
           </motion.div>
         </motion.div>
-      </section>
 
-      {/* ── SDK Preview ──────────────────────────────────────────────────── */}
-      <section id="sdk" className="w-full max-w-3xl px-4 sm:px-6 pb-28">
-        <motion.div
-          initial={{ opacity: 0, y: 32 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          className="rounded-2xl border border-white/8 bg-[#0a0a0a] overflow-hidden"
-        >
-          {/* Window chrome */}
-          <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/6">
-            <div className="flex gap-1.5">
-              <div className="w-3 h-3 rounded-full bg-red-500/30 border border-red-500/40" />
-              <div className="w-3 h-3 rounded-full bg-amber-500/30 border border-amber-500/40" />
-              <div className="w-3 h-3 rounded-full bg-emerald-500/30 border border-emerald-500/40" />
-            </div>
-            <span className="font-mono text-[10px] text-white/25 tracking-wider">main.py</span>
-            <div className="w-14" />
-          </div>
-          {/* Code */}
-          <div className="p-6 overflow-x-auto text-[13px] font-mono leading-7 text-white/70 whitespace-pre">
-            <span className="text-sky-400">from</span>{" "}
-            <span className="text-white/90">arivu</span>{" "}
-            <span className="text-sky-400">import</span>{" "}
-            <span className="text-white/90">Arivu</span>{"\n\n"}
-            <span className="text-white/25"># Initialize the engine</span>{"\n"}
-            <span className="text-white/90">app</span>{" = "}
-            <span className="text-white/90">Arivu</span>
-            <span className="text-white/50">.</span>
-            <span className="text-emerald-400">connect</span>
-            <span className="text-white/50">(</span>{"\n"}
-            {"  "}<span className="text-sky-300/80">database_url</span>
-            <span className="text-white/50">=</span>
-            <span className="text-amber-300/80">&quot;postgresql://user:pass@localhost:5432/db&quot;</span>
-            <span className="text-white/50">,</span>{"\n"}
-            {"  "}<span className="text-sky-300/80">llm_provider</span>
-            <span className="text-white/50">=</span>
-            <span className="text-amber-300/80">&quot;openai&quot;</span>
-            <span className="text-white/50">,</span>{"\n"}
-            {"  "}<span className="text-sky-300/80">monitoring</span>
-            <span className="text-white/50">=</span>
-            <span className="text-sky-400">True</span>{"\n"}
-            <span className="text-white/50">)</span>{"\n\n"}
-            <span className="text-white/25"># Run AI pipeline</span>{"\n"}
-            <span className="text-white/90">q</span>{" = "}
-            <span className="text-white/90">app</span>
-            <span className="text-white/50">.</span>
-            <span className="text-emerald-400">query</span>
-            <span className="text-white/50">(</span>
-            <span className="text-amber-300/80">&quot;What are the top 5 highest grossing customers?&quot;</span>
-            <span className="text-white/50">)</span>{"\n"}
-            <span className="text-white/90">response</span>{" = "}
-            <span className="text-white/90">app</span>
-            <span className="text-white/50">.</span>
-            <span className="text-emerald-400">run_pipeline</span>
-            <span className="text-white/50">(</span>
-            <span className="text-white/90">q</span>
-            <span className="text-white/50">)</span>{"\n\n"}
-            <span className="text-purple-400">print</span>
-            <span className="text-white/50">(</span>
-            <span className="text-white/90">response</span>
-            <span className="text-white/50">)</span>
-          </div>
-        </motion.div>
+        {/* ── Product Showcase Toggle ───────────────────────────────────────────── */}
+        <ProductShowcase />
       </section>
 
       {/* ── Features ─────────────────────────────────────────────────────── */}
@@ -296,32 +414,39 @@ export default function HomePage() {
         </motion.div>
 
         <motion.div
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+          className="grid grid-cols-1 md:grid-cols-3 gap-4 auto-rows-fr"
           variants={stagger}
           initial="hidden"
           whileInView="show"
           viewport={{ once: true, margin: "-5%" }}
         >
-          {features.map((f) => {
+          {features.map((f, i) => {
             const Icon = f.icon;
             const c = colorMap[f.color];
+
+            // Bento Box layout spanning logic
+            let colSpan = "md:col-span-1";
+            if (i === 0 || i === 3 || i === 4) colSpan = "md:col-span-2";
+
             return (
               <motion.div
                 key={f.title}
                 variants={itemAnim}
-                className="group relative rounded-2xl border border-white/7 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/12 p-7 transition-all duration-300 overflow-hidden"
+                className={`group relative rounded-3xl border border-white/7 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/12 p-8 transition-all duration-300 overflow-hidden flex flex-col justify-between ${colSpan}`}
               >
                 {/* Hover glow */}
-                <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none ${c.bg} blur-2xl scale-150`} />
-                <div className={`relative inline-flex h-11 w-11 items-center justify-center rounded-xl ${c.bg} ${c.text} ring-1 ${c.ring} mb-5`}>
-                  <Icon className="h-5 w-5" />
+                <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none ${c.bg} blur-3xl scale-150`} />
+                <div className={`relative inline-flex h-12 w-12 items-center justify-center rounded-2xl ${c.bg} ${c.text} ring-1 ${c.ring} mb-6 shadow-inner`}>
+                  <Icon className="h-6 w-6" />
                 </div>
-                <h3 className="relative text-[15px] font-semibold mb-2.5 tracking-tight text-white/90">
-                  {f.title}
-                </h3>
-                <p className="relative text-sm text-white/40 leading-relaxed">
-                  {f.desc}
-                </p>
+                <div>
+                  <h3 className="relative text-lg font-semibold mb-3 tracking-tight text-white/90">
+                    {f.title}
+                  </h3>
+                  <p className="relative text-sm text-white/40 leading-relaxed font-medium">
+                    {f.desc}
+                  </p>
+                </div>
               </motion.div>
             );
           })}
@@ -356,7 +481,7 @@ export default function HomePage() {
               Connect and federate data from your favorite warehouses and SQL databases.
             </motion.p>
           </motion.div>
-          <LogoGrid items={databases} cols={5} />
+          <LogoGrid items={databases} />
         </div>
 
         {/* Divider */}
@@ -383,7 +508,7 @@ export default function HomePage() {
               Arivu routes intelligently to your preferred model provider automatically.
             </motion.p>
           </motion.div>
-          <LogoGrid items={integrations} cols={7} />
+          <LogoGrid items={integrations} />
         </div>
 
         {/* Divider */}
@@ -410,7 +535,7 @@ export default function HomePage() {
               Deploy directly to the platforms your team already uses, plus REST API for full control.
             </motion.p>
           </motion.div>
-          <LogoGrid items={platforms} cols={5} />
+          <LogoGrid items={platforms} />
         </div>
       </section>
 

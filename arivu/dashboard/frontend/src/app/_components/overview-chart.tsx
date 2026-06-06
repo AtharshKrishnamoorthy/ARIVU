@@ -59,23 +59,33 @@ export function OverviewChart({ stats, loading }: OverviewChartProps) {
 }
 
 function ChartInner({ data, isDark }: { data: { name: string; latency: number }[]; isDark: boolean }) {
+  const barFill = isDark ? "hsl(0 0% 55%)" : "hsl(0 0% 65%)";
+  const barHover = isDark ? "hsl(0 0% 80%)" : "hsl(0 0% 10%)";
+  const gridColor = isDark ? "hsl(0 0% 20%)" : "hsl(0 0% 75%)";
+  const tickColor = isDark ? "hsl(0 0% 45%)" : "hsl(0 0% 55%)";
+  const tooltipBg = isDark ? "hsl(0 0% 12%)" : "hsl(0 0% 100%)";
+  const tooltipBorder = isDark ? "hsl(0 0% 20%)" : "hsl(0 0% 85%)";
+  const tooltipText = isDark ? "hsl(0 0% 90%)" : "hsl(0 0% 15%)";
+  const tooltipLabel = isDark ? "hsl(0 0% 55%)" : "hsl(0 0% 50%)";
+  const cursorFill = isDark ? "hsl(0 0% 18%)" : "hsl(0 0% 94%)";
+
   return (
     <ResponsiveContainer width="100%" height={300}>
       <BarChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
         <CartesianGrid
           strokeDasharray="3 3"
-          stroke={isDark ? "hsl(0 0% 15%)" : "hsl(0 0% 90%)"}
+          stroke={gridColor}
           vertical={false}
         />
         <XAxis
           dataKey="name"
-          tick={{ fontSize: 10, fill: isDark ? "hsl(0 0% 53%)" : "hsl(0 0% 45%)" }}
+          tick={{ fontSize: 10, fill: tickColor }}
           tickLine={false}
           axisLine={false}
           dy={8}
         />
         <YAxis
-          tick={{ fontSize: 10, fill: isDark ? "hsl(0 0% 53%)" : "hsl(0 0% 45%)" }}
+          tick={{ fontSize: 10, fill: tickColor }}
           tickLine={false}
           axisLine={false}
           tickFormatter={(v) => `${v}ms`}
@@ -83,20 +93,24 @@ function ChartInner({ data, isDark }: { data: { name: string; latency: number }[
         />
         <Tooltip
           contentStyle={{
-            backgroundColor: isDark ? "hsl(0 0% 4%)" : "hsl(0 0% 100%)",
-            border: `1px solid ${isDark ? "hsl(0 0% 10%)" : "hsl(0 0% 90%)"}`,
-            borderRadius: "6px",
+            backgroundColor: tooltipBg,
+            border: `1px solid ${tooltipBorder}`,
+            borderRadius: "8px",
             fontSize: "11px",
-            color: isDark ? "hsl(0 0% 93%)" : "hsl(0 0% 10%)",
+            color: tooltipText,
+            boxShadow: isDark ? "0 4px 12px rgba(0,0,0,0.4)" : "0 4px 12px rgba(0,0,0,0.08)",
+            padding: "8px 12px",
           }}
-          formatter={(value: number) => [`${value}ms`, "Avg Latency"]}
-          cursor={{ fill: isDark ? "hsl(0 0% 10%)" : "hsl(0 0% 95%)" }}
+          labelStyle={{ color: tooltipLabel, fontWeight: 600, marginBottom: 4 }}
+          formatter={(value: number, name: string) => [`${value}ms`, "Avg Latency"]}
+          cursor={{ fill: cursorFill, radius: 4 }}
         />
         <Bar
           dataKey="latency"
-          fill={isDark ? "hsl(0 0% 100%)" : "hsl(0 0% 10%)"}
+          fill={barFill}
           radius={[4, 4, 0, 0]}
           maxBarSize={48}
+          activeBar={{ fill: barHover }}
         />
       </BarChart>
     </ResponsiveContainer>

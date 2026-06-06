@@ -3,13 +3,14 @@
 import { motion, useScroll, useTransform, useSpring } from "framer-motion";
 import Image from "next/image";
 import { useRef } from "react";
-import { Database, BrainCircuit, Sparkles, Activity } from "lucide-react";
+import { Database, BrainCircuit, Sparkles, Activity, LayoutDashboard } from "lucide-react";
 
 const steps = [
     { num: "01", title: "Connect Your Database", desc: "Link PostgreSQL, MySQL, SQLite, Databricks, or Snowflake in seconds. Arivu securely maps your schema, relationships, and metadata automatically.", img: "/arivu-db.png", icon: Database, color: "text-blue-400", bg: "bg-blue-500/10", glow: "rgba(59,130,246,0.15)" },
     { num: "02", title: "Configure the Intelligent Engine", desc: "Select from top-tier models like OpenAI, Anthropic, or run local open-source models via Ollama. Customize prompts and set up your agentic pipeline.", img: "/arivu-models.png", icon: BrainCircuit, color: "text-emerald-400", bg: "bg-emerald-500/10", glow: "rgba(16,185,129,0.15)" },
     { num: "03", title: "Query with Natural Language", desc: "Ask questions naturally. The agent generates SQL, executes it safely, and renders beautiful charts and data tables instantly in the chat interface.", img: "/arivu-chat-dash.png", icon: Sparkles, color: "text-purple-400", bg: "bg-purple-500/10", glow: "rgba(168,85,247,0.15)" },
-    { num: "04", title: "Deploy, Automate & Monitor", desc: "Connect to Slack, Discord, or schedule automated email reports. Monitor all pipeline traces, SQL syntax, and performance in real-time.", img: "/arivu-sessions.png", icon: Activity, color: "text-orange-400", bg: "bg-orange-500/10", glow: "rgba(249,115,22,0.15)" }
+    { num: "04", title: "Build with Workspace Tools", desc: "Build tailored Dashboards, inspect schema with DB Explorer, save your best queries, and schedule recurring Automations to external apps.", img: "/4-card-page-new-2.png", icon: LayoutDashboard, color: "text-pink-400", bg: "bg-pink-500/10", glow: "rgba(236,72,153,0.15)" },
+    { num: "05", title: "Deploy, Automate & Monitor", desc: "Connect to Slack, Discord, or schedule automated email reports. Monitor all pipeline traces, SQL syntax, and performance in real-time.", img: "/arivu-sessions.png", icon: Activity, color: "text-orange-400", bg: "bg-orange-500/10", glow: "rgba(249,115,22,0.15)" }
 ];
 
 function StepCard({ step, i }: { step: typeof steps[0], i: number }) {
@@ -138,7 +139,7 @@ export default function HowItWorks() {
                     viewport={{ once: true }}
                     transition={{ duration: 0.7, ease: "easeOut", delay: 0.1 }}
                 >
-                    From raw database connections to fully automated insights in four simple steps.
+                    From raw database connections to fully automated insights in five simple steps.
                 </motion.p>
             </div>
 

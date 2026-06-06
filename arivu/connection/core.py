@@ -76,6 +76,7 @@ class Arivu:
         schema_cache: SchemaCache,
         dialect: str,
         connection_display: str = "",
+        query_timeout: int = 30,
     ) -> None:
         self._engine = engine
         self._mode = mode
@@ -84,6 +85,7 @@ class Arivu:
         self._dialect = dialect
         self._connection_display = connection_display
         self._closed = False
+        self._query_timeout = query_timeout
 
     # ─────────────────────────────────────────
     # Factory
@@ -112,6 +114,7 @@ class Arivu:
         mode: str = "user",
         ttl: int = 3600,
         schema_on_connect: bool = True,
+        query_timeout: int = 30,
         **extra_kwargs,
     ) -> "Arivu":
         """
@@ -166,8 +169,7 @@ class Arivu:
             )
             display = f"{dialect}://{host}:{port}/{dbname}"
 
-        print(f"\n◀  Arivu.connect()  {display}  mode={mode}", flush=True)
-        logger.info(f"Connecting to {display} as mode={mode}")
+        logger.info(f"Connecting  {display}  mode={mode}")
 
         # ── Step 1: auth + build engine ──────────────
         engine = authenticate(**connect_kwargs)
@@ -188,13 +190,14 @@ class Arivu:
             schema_cache=schema_cache,
             dialect=dialect,
             connection_display=display,
+            query_timeout=query_timeout,
         )
 
         logger.info(
             f"Connection ready  session_id={session_id}  mode={mode}  "
             f"schema_cached={'yes' if schema_cache.is_valid() else 'no'}"
         )
-        print(f"✔  Connected  session={session_id[:12]}  schema={'cached' if schema_cache.is_valid() else 'empty'}\n", flush=True)
+        logger.info(f"Connected  session={session_id[:12]}  schema={'cached' if schema_cache.is_valid() else 'empty'}")
         return instance
 
     # ─────────────────────────────────────────
@@ -250,6 +253,53 @@ class Arivu:
             self._closed = True
             logger.info(f"Connection closed  session_id={self._session_id}")
 
+    def ping(self) -> bool:
+        """
+        Quick health check — returns True if the DB is reachable.
+
+        Runs a lightweight probe query (SELECT 1) to verify connectivity.
+        """
+        self._assert_open()
+        try:
+            with self._engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            return True
+        except Exception:
+            return False
+
+    def list_tables(self) -> list[str]:
+        """
+        Return a list of table names from the current schema cache.
+
+        Triggers a schema refresh if the cache is empty or stale.
+        """
+        self._assert_open()
+        self._auto_refresh_if_stale()
+        raw = self._schema_cache.raw_schema or []
+        return [t["table"] for t in raw]
+
+    def execute_sql(self, sql: str, params: dict | None = None) -> list[dict]:
+        """
+        Execute raw SQL and return results as a list of dicts.
+
+        WARNING: This bypasses the Arivu safety pipeline. Destructive
+        operations will execute without approval. Use with caution.
+
+        Args:
+            sql: Raw SQL statement
+            params: Optional parameter dict for parameterized queries
+
+        Returns:
+            List of row dicts for SELECT queries, empty list for others.
+        """
+        self._assert_open()
+        with self._engine.connect() as conn:
+            result = conn.execute(text(sql), params or {})
+            if result.returns_rows:
+                return [dict(row) for row in result]
+            conn.commit()
+            return []
+
     # ─────────────────────────────────────────
     # Properties
     # ─────────────────────────────────────────
@@ -270,6 +320,11 @@ class Arivu:
     def schema_age_seconds(self) -> Optional[float]:
         """How old the current schema cache is in seconds."""
         return self._schema_cache.age_seconds
+
+    @property
+    def query_timeout(self) -> int:
+        """Query timeout in seconds."""
+        return self._query_timeout
 
     # ─────────────────────────────────────────
     # Context manager support

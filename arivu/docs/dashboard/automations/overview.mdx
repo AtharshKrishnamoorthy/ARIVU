@@ -5,7 +5,7 @@ description: "Run queries on a recurring schedule with automated actions."
 
 import { Callout, Steps, CardGroup, Card } from "mintlify/components";
 
-<img src="/images/automation-dash.png" alt="Automations Dashboard" />
+<img src="/images/automations-dash-new.png" alt="Automations Dashboard" />
 
 ## Overview
 
@@ -38,20 +38,19 @@ Scheduled Automations allow you to run natural language queries automatically at
 
 ## Creating an Automation
 
+Automations rely on Integrations to deliver reports.
+
 <Steps>
-  <Step title="Configure Email (optional)">
-    If you plan to deliver results via **Email**, configure SMTP settings first in Settings → [Email Configuration](/dashboard/settings) and run a test email.
-
-    <img src="/images/arivu-settings-mail-config.png" alt="Automations Dashboard" />
-
+  <Step title="Configure Integrations (Optional)">
+    If you haven't already, navigate to **Connections -> Integrations** on the global dashboard home page. Connect your desired platforms (e.g., Slack, Telegram, Webhooks). For email, ensure your SMTP settings are configured in **Settings**.
   </Step>
 
-  <Step title="Navigate to Automations">
-    From the Dashboard sidebar, click **Automations**.
+  <Step title="Navigate to a Database Workspace">
+    Automations are scoped to individual databases. Select a database connection from the sidebar to enter its workspace.
   </Step>
-  
-  <Step title="Click Create">
-    Click the **Create** button in the top right corner.
+
+  <Step title="Go to Automations & Click Create">
+    Inside the database workspace, click **Automations** in the sidebar, then click the **Create** button in the top right corner.
   </Step>
   
   <Step title="Enter Details">
@@ -67,17 +66,21 @@ Scheduled Automations allow you to run natural language queries automatically at
     - **Custom**: Enter 5-part cron format
   </Step>
   
-  <Step title="Choose Action">
+  <Step title="Choose Action (Integration)">
     Select where results are delivered:
     - **Log**: Stored in automation history
-    - **Email**: Sent to configured recipient
-    - **Webhook**: POSTed to external endpoint
+    - **Active Integrations**: Any platform you connected in step 1 (e.g., Slack, Telegram, Webhook) will appear here. Attach it to your automation.
   </Step>
   
   <Step title="Save">
     Click **Create** to save and activate the automation.
   </Step>
 </Steps>
+
+<img
+  src="/images/create-automation.png"
+  alt="Dashboard Interface Dark"
+/>
 
 ## Managing Automations
 
@@ -88,7 +91,7 @@ Click on any automation card to open its detail page with:
 - **Run History**: Timestamps, duration, status for each execution
 - **Live Logs**: Real-time execution logs when you click "Run Now"
 
-<img src="/images/automation-page.png" alt="Automations Dashboard" />
+<img src="/images/automation-page-new.png" alt="Automations Dashboard" />
 
 ### Run Now
 
@@ -116,12 +119,12 @@ Toggle an automation on/off without deleting:
     Results stored in automation history visible in the dashboard. Best for monitoring and analysis.
   </Card>
   
-  <Card title="Email" icon="envelope">
-    Results formatted and emailed to configured recipients. Requires SMTP settings.
+  <Card title="Messaging Integrations" icon="message">
+    Results formatted and sent directly to your connected Telegram, WhatsApp, Slack, or Discord accounts.
   </Card>
   
-  <Card title="Webhook" icon="webhook">
-    Results POSTed to external endpoint as JSON. Integrate with external tools and APIs.
+  <Card title="Webhooks & Email" icon="webhook">
+    Send results to a custom POST endpoint or as an HTML email to configured recipients.
   </Card>
 </CardGroup>
 

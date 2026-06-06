@@ -29,7 +29,7 @@ logger = logging.getLogger("arivu.memory.backend")
 class BaseMemoryBackend(ABC):
 
     @abstractmethod
-    def load_session_history(self, session_id: str, limit: int = 3) -> list[dict]: ...
+    def load_session_history(self, session_id: str, limit: int = 3, db_alias: str = "") -> list[dict]: ...
 
     @abstractmethod
     def save_interaction(
@@ -39,6 +39,9 @@ class BaseMemoryBackend(ABC):
         sql: str,
         response: str,
         trace_events: list[dict],
+        db_alias: str = "",
+        dialect: str = "",
+        interface: str = "dashboard",
     ) -> None: ...
 
     @abstractmethod
@@ -47,13 +50,17 @@ class BaseMemoryBackend(ABC):
         session_id: str,
         sql: str,
         question: str,
+        db_alias: str = "",
     ) -> None: ...
 
     @abstractmethod
-    def get_pending_approval(self, session_id: str) -> Optional[dict]: ...
+    def get_pending_approval(self, session_id: str, db_alias: str = "") -> Optional[dict]: ...
 
     @abstractmethod
-    def resolve_approval(self, session_id: str, approved: bool) -> None: ...
+    def resolve_approval(self, session_id: str, approved: bool, db_alias: str = "") -> None: ...
+
+    @abstractmethod
+    def get_all_pending_approvals(self, db_alias: str = "") -> list[dict]: ...
 
     @abstractmethod
     def save_rlhf_signal(
@@ -63,6 +70,9 @@ class BaseMemoryBackend(ABC):
         sql: str,
         signal: str,
         approved: Optional[bool],
+        db_alias: str = "",
+        dialect: str = "",
+        interface: str = "dashboard",
     ) -> None: ...
 
     @abstractmethod
@@ -70,6 +80,7 @@ class BaseMemoryBackend(ABC):
         self,
         limit: int,
         signal_filter: Optional[str],
+        db_alias: str = "",
     ) -> list[dict]: ...
 
     @abstractmethod
@@ -82,25 +93,28 @@ class BaseMemoryBackend(ABC):
         question: str,
         sql: str,
         trace_events: list[dict],
+        db_alias: str = "",
         dialect: str = "",
         connection_meta: dict = None,
+        interface: str = "dashboard",
     ) -> None: ...
 
     @abstractmethod
-    def get_error_log(self, limit: int) -> list[dict]: ...
+    def get_error_log(self, limit: int, db_alias: str = "") -> list[dict]: ...
 
     @abstractmethod
     def get_pipeline_traces(
         self,
         session_id: Optional[str],
         limit: int,
+        db_alias: str = "",
     ) -> list[dict]: ...
 
     @abstractmethod
-    def get_session_list(self, limit: int) -> list[dict]: ...
+    def get_session_list(self, limit: int, db_alias: str = "") -> list[dict]: ...
 
     @abstractmethod
-    def get_dashboard_stats(self) -> dict: ...
+    def get_dashboard_stats(self, db_alias: str = "") -> dict: ...
 
     # ── Config ───────────────────────────────────────────────────────────
 
@@ -112,6 +126,34 @@ class BaseMemoryBackend(ABC):
 
     @abstractmethod
     def get_configs_by_prefix(self, prefix: str) -> dict[str, dict]: ...
+
+    # ── Saved Queries ────────────────────────────────────────────────────
+
+    @abstractmethod
+    def save_saved_query(
+        self,
+        query_id: str,
+        session_id: str,
+        query: str,
+        sql: str,
+        notes: str = "",
+        db_alias: str = "",
+    ) -> None: ...
+
+    @abstractmethod
+    def get_saved_query(self, query_id: str, db_alias: str = "") -> Optional[dict]: ...
+
+    @abstractmethod
+    def list_saved_queries(self, limit: int = 50, offset: int = 0, db_alias: str = "") -> list[dict]: ...
+
+    @abstractmethod
+    def list_session_saved_queries(self, session_id: str, limit: int = 50, db_alias: str = "") -> list[dict]: ...
+
+    @abstractmethod
+    def update_saved_query(self, query_id: str, notes: str, db_alias: str = "") -> None: ...
+
+    @abstractmethod
+    def delete_saved_query(self, query_id: str, db_alias: str = "") -> None: ...
 
 
 # ─────────────────────────────────────────────────────────────────────────────

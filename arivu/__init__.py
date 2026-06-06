@@ -26,7 +26,7 @@ for _noisy in ("httpx", "httpcore", "urllib3", "sqlalchemy.engine",
                "sentence_transformers", "transformers", "torch"):
     logging.getLogger(_noisy).setLevel(logging.WARNING)
 
-print("▶  Arivu package loaded — logging active (INFO+)", flush=True)
+logging.getLogger("arivu").info("Arivu package loaded — logging active")
 
 from arivu.connection import (
     Arivu,
@@ -36,12 +36,24 @@ from arivu.connection import (
     SchemaExtractionError,
     ModeViolationError,
 )
+from arivu.pipeline.runner import (
+    PipelineConfig,
+    PipelineResult,
+    run_pipeline,
+    run_pipeline_async,
+)
 
 __all__ = [
+    # Connection
     "Arivu",
     "ArivuError",
     "AuthError",
     "ConnectionError",
     "SchemaExtractionError",
     "ModeViolationError",
+    # Pipeline
+    "PipelineConfig",
+    "PipelineResult",
+    "run_pipeline",
+    "run_pipeline_async",
 ]

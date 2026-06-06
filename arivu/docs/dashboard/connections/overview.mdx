@@ -3,10 +3,9 @@ title: "Connections Overview"
 description: "Managing your data and intelligence sources"
 ---
 
-Arivu acts as a bridge between your **Data (SQL)** and **Intelligence (LLM)**. The Connections module is where you configure both sides of this equation.
+Arivu acts as a bridge between your **Data (SQL)**, **Intelligence (LLM)**, and **Actions (Integrations)**. The Connections module is where you configure these aspects.
 
-<img src="/images/arivu-db.png" className="hidden dark:block" />
-
+<img src="/images/dashboard-new.png" className="hidden dark:block" />
 
 ## Data Sources
 
@@ -27,9 +26,9 @@ Connect to your relational databases. Arivu supports multi-dialect federation, m
   </Card>
 </CardGroup>
 
-## Intelligence Layer
+## Intelligence Layer (LLM Providers & Store)
 
-Select and configure the LLM that powers SQL generation. Swap providers with zero code changes.
+Select and configure the LLM that powers SQL generation. You can configure multiple models and use the **LLM Store** to save, manage, and instantly toggle between different LLM configurations with zero code changes.
 
 <CardGroup cols={2}>
   <Card title="OpenAI" icon="robot" href="/dashboard/connections/llms/openai">
@@ -43,5 +42,18 @@ Select and configure the LLM that powers SQL generation. Swap providers with zer
   </Card>
   <Card title="Ollama" icon="server" href="/dashboard/connections/llms/ollama">
     Run models locally with zero API costs.
+  </Card>
+</CardGroup>
+
+## App Integrations
+
+Configure external platforms to send automated reports and alerts. Once connected here globally, they can be utilized across all database workspaces in your scheduled Automations.
+
+<CardGroup cols={2}>
+  <Card title="Messaging Apps" icon="message" href="/dashboard/connections/integrations">
+    Telegram, WhatsApp, Slack, and Discord bot integrations.
+  </Card>
+  <Card title="Webhooks & Email" icon="webhook" href="/dashboard/connections/integrations">
+    Send custom JSON payloads or HTML emails on schedule.
   </Card>
 </CardGroup>

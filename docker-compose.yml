@@ -1,0 +1,21 @@
+
+services:
+  backend:
+    image: atharshkrish/arivu-backend:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./.arivu_data:/app/.arivu_data # Persist SQLite database and files
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  frontend:
+    image: atharshkrish/arivu-frontend:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - BACKEND_URL=http://backend:8000
+    depends_on:
+      - backend
+    restart: unless-stopped

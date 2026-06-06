@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   Table,
@@ -21,6 +21,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { Separator } from "@/components/ui/separator";
 import type { ErrorEntry } from "../../../services/types";
 import { AlertTriangle, Search, Eye, Database, Terminal, Clock, Hash, LayoutDashboard, MessageSquare } from "lucide-react";
@@ -90,7 +97,7 @@ export function ErrorsTable({ errors, loading, globalSearch = "" }: ErrorsTableP
       (e.error || "").toLowerCase().includes(query)
   );
 
-  const columns: ColumnDef<ErrorEntry>[] = [
+  const columns = useMemo<ColumnDef<ErrorEntry>[]>(() => [
     {
       accessorKey: "error_node",
       header: "Node",
@@ -103,6 +110,7 @@ export function ErrorsTable({ errors, loading, globalSearch = "" }: ErrorsTableP
     {
       accessorKey: "error_type",
       header: "Type",
+      meta: { className: "hidden md:table-cell" },
       cell: ({ row }) => (
         <span className="font-mono text-[11px] text-amber-400 whitespace-nowrap">
           {row.original.error_type || "—"}
@@ -121,6 +129,7 @@ export function ErrorsTable({ errors, loading, globalSearch = "" }: ErrorsTableP
     {
       accessorKey: "dialect",
       header: "Dialect",
+      meta: { className: "hidden md:table-cell" },
       cell: ({ row }) => {
         const dialect = row.original.dialect;
         return dialect ? (
@@ -140,6 +149,7 @@ export function ErrorsTable({ errors, loading, globalSearch = "" }: ErrorsTableP
     {
       accessorKey: "interface",
       header: "Interface",
+      meta: { className: "hidden lg:table-cell" },
       cell: ({ row }) => {
         const intf = row.original.interface || "dashboard";
         const Icon = intf === "dashboard" ? LayoutDashboard : MessageSquare;
@@ -154,6 +164,7 @@ export function ErrorsTable({ errors, loading, globalSearch = "" }: ErrorsTableP
     {
       accessorKey: "question",
       header: "Question",
+      meta: { className: "hidden lg:table-cell" },
       cell: ({ row }) => (
         <div className="max-w-[150px]">
           <span className="text-xs text-muted-foreground line-clamp-1">{truncate(row.original.question, 32)}</span>
@@ -163,6 +174,7 @@ export function ErrorsTable({ errors, loading, globalSearch = "" }: ErrorsTableP
     {
       accessorKey: "session_id",
       header: "Session",
+      meta: { className: "hidden md:table-cell" },
       cell: ({ row }) => (
         <span className="font-mono text-[11px] text-muted-foreground whitespace-nowrap">
           {row.original.session_id ? row.original.session_id.slice(0, 10) + "…" : "—"}
@@ -194,7 +206,144 @@ export function ErrorsTable({ errors, loading, globalSearch = "" }: ErrorsTableP
         </Button>
       ),
     },
-  ];
+  ], []);
+
+  const isDesktop = useMediaQuery("(min-width: 768px)");
+
+  const detailHeaderContent = detailError && (
+    <>
+      <div className="flex items-center gap-2 mb-1">
+        <Badge variant="outline" className="text-red-400 border-red-500/25 bg-red-500/8 text-[10px] px-2 py-0.5">
+          {detailError.error_node || "unknown"}
+        </Badge>
+        <span className="text-[10px] text-muted-foreground/50">·</span>
+        <span className="font-mono text-[10px] text-amber-400">{detailError.error_type || "Unknown"}</span>
+      </div>
+      {isDesktop ? (
+        <SheetTitle className="text-base font-semibold text-foreground leading-snug">
+          Error Details
+        </SheetTitle>
+      ) : (
+        <DrawerTitle className="text-base font-semibold text-foreground leading-snug mt-2">
+          Error Details
+        </DrawerTitle>
+      )}
+    </>
+  );
+
+  const detailMainContent = detailError && (
+    <div className="px-6 py-5 space-y-6">
+      {/* Error message */}
+      <section>
+        <SectionLabel>Error Message</SectionLabel>
+        <div className="border border-red-500/20 bg-red-500/5 rounded-lg px-4 py-3">
+          <p className="text-sm text-red-400 leading-relaxed break-words">{detailError.error || "No error message."}</p>
+        </div>
+      </section>
+
+      <Separator className="bg-border" />
+
+      {/* Connection section */}
+      <section>
+        <SectionLabel>
+          <Database className="w-3 h-3 inline-block mr-1 -mt-0.5" />
+          Connection
+        </SectionLabel>
+        <div className="border border-border rounded-lg bg-card overflow-hidden">
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-border/60">
+            {detailError.dialect ? (
+              <img
+                src={DIALECT_LOGOS[detailError.dialect] || DIALECT_LOGOS.postgresql}
+                alt={detailError.dialect}
+                className="w-5 h-5 object-contain flex-shrink-0"
+              />
+            ) : (
+              <Database className="w-5 h-5 text-muted-foreground/40 flex-shrink-0" />
+            )}
+            <div className="flex-1 min-w-0">
+              <span className="text-sm font-medium capitalize">
+                {detailError.dialect || "Unknown"}
+              </span>
+            </div>
+            {detailError.connection_meta?.mode && (
+              <Badge variant="outline" className="text-[9px] px-2 py-0.5 h-5 capitalize flex-shrink-0">
+                {detailError.connection_meta.mode}
+              </Badge>
+            )}
+          </div>
+          {detailError.connection_meta?.display ? (
+            <div className="px-4 py-2.5">
+              <p className="font-mono text-[11px] text-muted-foreground break-all leading-relaxed">
+                {detailError.connection_meta.display}
+              </p>
+            </div>
+          ) : (
+            <div className="px-4 py-2.5">
+              <p className="text-[11px] text-muted-foreground/40 italic">
+                No connection metadata — this trace predates v0.2.0.
+              </p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <Separator className="bg-border" />
+
+      {/* Query context */}
+      <section>
+        <SectionLabel>
+          <Terminal className="w-3 h-3 inline-block mr-1 -mt-0.5" />
+          Query Context
+        </SectionLabel>
+        <div className="space-y-3">
+          {/* Question */}
+          <div>
+            <p className="text-[10px] text-muted-foreground/60 mb-1.5">Question</p>
+            <div className="bg-muted/60 border border-border/60 rounded-lg px-4 py-3">
+              <p className="text-sm text-foreground leading-relaxed break-words">
+                {detailError.question || "—"}
+              </p>
+            </div>
+          </div>
+          {/* SQL */}
+          {detailError.sql && (
+            <div>
+              <p className="text-[10px] text-muted-foreground/60 mb-1.5">Generated SQL</p>
+              <SqlBlock sql={detailError.sql} />
+            </div>
+          )}
+        </div>
+      </section>
+
+      <Separator className="bg-border" />
+
+      {/* Meta */}
+      <section>
+        <SectionLabel>
+          <Hash className="w-3 h-3 inline-block mr-1 -mt-0.5" />
+          Trace Metadata
+        </SectionLabel>
+        <div className="grid grid-cols-1 gap-2">
+          <div className="flex items-start gap-3 bg-muted/40 rounded-lg px-4 py-3">
+            <Hash className="w-3.5 h-3.5 text-muted-foreground/50 mt-0.5 flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[10px] text-muted-foreground/60 mb-0.5">Session ID</p>
+              <p className="font-mono text-[11.5px] text-muted-foreground break-all">
+                {detailError.session_id || "—"}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3 bg-muted/40 rounded-lg px-4 py-3">
+            <Clock className="w-3.5 h-3.5 text-muted-foreground/50 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-[10px] text-muted-foreground/60 mb-0.5">Timestamp</p>
+              <p className="font-mono text-[11.5px] text-muted-foreground">{fmtTs(detailError.ts)}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
 
   return (
     <>
@@ -244,148 +393,39 @@ export function ErrorsTable({ errors, loading, globalSearch = "" }: ErrorsTableP
         )}
       </div>
 
-      {/* ─── Error Details Sheet ─── */}
-      <Sheet open={!!detailError} onOpenChange={(v) => !v && setDetailError(null)}>
-        <SheetContent
-          className="w-full sm:w-[640px] sm:max-w-[640px] lg:w-[720px] lg:max-w-[720px] bg-background border-l border-border overflow-y-auto p-0"
-          style={{ maxWidth: "min(720px, 92vw)" }}
-        >
-          {detailError && (
-            <>
-              {/* ── Header band ── */}
-              <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border px-6 pt-6 pb-4">
-                <SheetHeader>
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge variant="outline" className="text-red-400 border-red-500/25 bg-red-500/8 text-[10px] px-2 py-0.5">
-                      {detailError.error_node || "unknown"}
-                    </Badge>
-                    <span className="text-[10px] text-muted-foreground/50">·</span>
-                    <span className="font-mono text-[10px] text-amber-400">{detailError.error_type || "Unknown"}</span>
-                  </div>
-                  <SheetTitle className="text-base font-semibold text-foreground leading-snug">
-                    Error Details
-                  </SheetTitle>
-                </SheetHeader>
-              </div>
-
-              {/* ── Body ── */}
-              <div className="px-6 py-5 space-y-6">
-
-                {/* Error message */}
-                <section>
-                  <SectionLabel>Error Message</SectionLabel>
-                  <div className="border border-red-500/20 bg-red-500/5 rounded-lg px-4 py-3">
-                    <p className="text-sm text-red-400 leading-relaxed break-words">{detailError.error || "No error message."}</p>
-                  </div>
-                </section>
-
-                <Separator className="bg-border" />
-
-                {/* Connection section */}
-                <section>
-                  <SectionLabel>
-                    <Database className="w-3 h-3 inline-block mr-1 -mt-0.5" />
-                    Connection
-                  </SectionLabel>
-                  <div className="border border-border rounded-lg bg-card overflow-hidden">
-                    <div className="flex items-center gap-3 px-4 py-3 border-b border-border/60">
-                      {detailError.dialect ? (
-                        <img
-                          src={DIALECT_LOGOS[detailError.dialect] || DIALECT_LOGOS.postgresql}
-                          alt={detailError.dialect}
-                          className="w-5 h-5 object-contain flex-shrink-0"
-                        />
-                      ) : (
-                        <Database className="w-5 h-5 text-muted-foreground/40 flex-shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <span className="text-sm font-medium capitalize">
-                          {detailError.dialect || "Unknown"}
-                        </span>
-                      </div>
-                      {detailError.connection_meta?.mode && (
-                        <Badge variant="outline" className="text-[9px] px-2 py-0.5 h-5 capitalize flex-shrink-0">
-                          {detailError.connection_meta.mode}
-                        </Badge>
-                      )}
-                    </div>
-                    {detailError.connection_meta?.display ? (
-                      <div className="px-4 py-2.5">
-                        <p className="font-mono text-[11px] text-muted-foreground break-all leading-relaxed">
-                          {detailError.connection_meta.display}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="px-4 py-2.5">
-                        <p className="text-[11px] text-muted-foreground/40 italic">
-                          No connection metadata — this trace predates v0.2.0.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </section>
-
-                <Separator className="bg-border" />
-
-                {/* Query context */}
-                <section>
-                  <SectionLabel>
-                    <Terminal className="w-3 h-3 inline-block mr-1 -mt-0.5" />
-                    Query Context
-                  </SectionLabel>
-                  <div className="space-y-3">
-                    {/* Question */}
-                    <div>
-                      <p className="text-[10px] text-muted-foreground/60 mb-1.5">Question</p>
-                      <div className="bg-muted/60 border border-border/60 rounded-lg px-4 py-3">
-                        <p className="text-sm text-foreground leading-relaxed break-words">
-                          {detailError.question || "—"}
-                        </p>
-                      </div>
-                    </div>
-                    {/* SQL */}
-                    {detailError.sql && (
-                      <div>
-                        <p className="text-[10px] text-muted-foreground/60 mb-1.5">Generated SQL</p>
-                        <SqlBlock sql={detailError.sql} />
-                      </div>
-                    )}
-                  </div>
-                </section>
-
-                <Separator className="bg-border" />
-
-                {/* Meta */}
-                <section>
-                  <SectionLabel>
-                    <Hash className="w-3 h-3 inline-block mr-1 -mt-0.5" />
-                    Trace Metadata
-                  </SectionLabel>
-                  <div className="grid grid-cols-1 gap-2">
-                    <div className="flex items-start gap-3 bg-muted/40 rounded-lg px-4 py-3">
-                      <Hash className="w-3.5 h-3.5 text-muted-foreground/50 mt-0.5 flex-shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-[10px] text-muted-foreground/60 mb-0.5">Session ID</p>
-                        <p className="font-mono text-[11.5px] text-muted-foreground break-all">
-                          {detailError.session_id || "—"}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3 bg-muted/40 rounded-lg px-4 py-3">
-                      <Clock className="w-3.5 h-3.5 text-muted-foreground/50 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-[10px] text-muted-foreground/60 mb-0.5">Timestamp</p>
-                        <p className="font-mono text-[11.5px] text-muted-foreground">{fmtTs(detailError.ts)}</p>
-                      </div>
-                    </div>
-                  </div>
-                </section>
-
-              </div>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
+      {/* ─── Error Details Sheet / Drawer ─── */}
+      {isDesktop ? (
+        <Sheet open={!!detailError} onOpenChange={(v) => !v && setDetailError(null)}>
+          <SheetContent
+            className="w-full sm:w-[640px] sm:max-w-[640px] lg:w-[720px] lg:max-w-[720px] bg-background border-l border-border overflow-y-auto p-0"
+            style={{ maxWidth: "min(720px, 92vw)" }}
+          >
+            {detailError && (
+              <>
+                <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border px-6 pt-6 pb-4">
+                  <SheetHeader className="text-left">{detailHeaderContent}</SheetHeader>
+                </div>
+                {detailMainContent}
+              </>
+            )}
+          </SheetContent>
+        </Sheet>
+      ) : (
+        <Drawer open={!!detailError} onOpenChange={(v) => !v && setDetailError(null)}>
+          <DrawerContent className="bg-background border-border max-h-[85vh] rounded-t-[1.5rem] flex flex-col overflow-hidden">
+            {detailError && (
+              <>
+                <div className="sticky top-0 z-10 bg-background border-b border-border px-6 pt-4 pb-4 shrink-0">
+                  <DrawerHeader className="p-0 text-left">{detailHeaderContent}</DrawerHeader>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                  {detailMainContent}
+                </div>
+              </>
+            )}
+          </DrawerContent>
+        </Drawer>
+      )}
     </>
   );
 }

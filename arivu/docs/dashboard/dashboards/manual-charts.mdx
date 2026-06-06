@@ -1,0 +1,39 @@
+---
+title: "Manual Charts"
+description: "Create charts manually by selecting tables and mapping axes."
+---
+
+import { Steps } from "mintlify/components";
+
+If you know exactly what data you want to visualize, you can build a chart manually from within your dashboard.
+
+## Supported Capabilities
+
+Currently, manual charts support **single-table visualizations**. This means you select one table from your database and map its columns to the chart's axes. (Multi-table joins are not currently supported in the manual builder; for complex queries, use [Chat Charts](./chat-charts.mdx)).
+
+## Creating a Manual Chart
+
+<Steps>
+  <Step title="Open your Dashboard">
+    Navigate to the Dashboards tab in your database workspace and click on the dashboard you want to edit.
+  </Step>
+  <Step title="Add a Widget">
+    Click the **Add Widget** or **New Chart** button on the dashboard interface.
+  </Step>
+  <Step title="Select Data Source">
+    Choose the specific database table you want to visualize.
+  </Step>
+  <Step title="Configure Axes">
+    Map the columns from your selected table to the chart dimensions:
+    - **X-Axis**: Typically a category, date, or identifier.
+    - **Y-Axis**: The numerical value or metric you want to measure.
+  </Step>
+  <Step title="Save and Arrange">
+    Click create. The chart will appear on your dashboard where you can drag to reposition or resize it to fit your layout neatly.
+  </Step>
+</Steps>
+
+<img
+  src="/images/manual-chart.png"
+  alt="Manual Charts"
+/>

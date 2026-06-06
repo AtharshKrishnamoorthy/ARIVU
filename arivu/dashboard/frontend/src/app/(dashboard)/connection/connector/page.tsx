@@ -121,14 +121,11 @@ export default function ConnectorPage() {
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6">
-      {/* Header - no status dot here */}
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-semibold">Connections</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {activeAlias ? `Active: ${activeAlias}` : "No active connection"}
-          </p>
-        </div>
+        <p className="text-xs text-muted-foreground">
+          {activeAlias ? `Active: ${activeAlias}` : "No active connection"}
+        </p>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" className="h-8 px-3 text-xs gap-1.5"
             onClick={load} disabled={loading}>

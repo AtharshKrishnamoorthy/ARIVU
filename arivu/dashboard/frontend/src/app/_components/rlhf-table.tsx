@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   Table,
@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { RLHFEntry } from "../../../services/types";
-import { ThumbsUp, LayoutDashboard, MessageSquare } from "lucide-react";
+import { ThumbsUp, ThumbsDown, LayoutDashboard, MessageSquare } from "lucide-react";
 
 const DIALECT_LOGOS: Record<string, string> = {
   postgresql: "/postgresql-logo.svg",
@@ -65,7 +65,7 @@ export function RLHFTable({ entries, loading }: RLHFTableProps) {
   const pos = entries.filter((e) => e.signal === "positive").length;
   const neg = entries.filter((e) => e.signal === "negative").length;
 
-  const columns: ColumnDef<RLHFEntry>[] = [
+  const columns = useMemo<ColumnDef<RLHFEntry>[]>(() => [
     {
       accessorKey: "signal",
       header: "Signal",
@@ -80,7 +80,12 @@ export function RLHFTable({ entries, loading }: RLHFTableProps) {
                 : "text-red-500 border-red-500/20 bg-red-500/5 text-[10px] px-1.5 py-0"
             }
           >
-            {sig === "positive" ? "👍" : "👎"} {sig}
+            {sig === "positive" ? (
+              <ThumbsUp className="w-3 h-3 mr-1" />
+            ) : (
+              <ThumbsDown className="w-3 h-3 mr-1" />
+            )}
+            {sig}
           </Badge>
         );
       },
@@ -88,6 +93,7 @@ export function RLHFTable({ entries, loading }: RLHFTableProps) {
     {
       accessorKey: "dialect",
       header: "Dialect",
+      meta: { className: "hidden md:table-cell" },
       cell: ({ row }) => {
         const dialect = row.original.dialect;
         return dialect ? (
@@ -107,6 +113,7 @@ export function RLHFTable({ entries, loading }: RLHFTableProps) {
     {
       accessorKey: "interface",
       header: "Interface",
+      meta: { className: "hidden lg:table-cell" },
       cell: ({ row }) => {
         const intf = row.original.interface || "dashboard";
         const Icon = intf === "dashboard" ? LayoutDashboard : MessageSquare;
@@ -130,6 +137,7 @@ export function RLHFTable({ entries, loading }: RLHFTableProps) {
     {
       accessorKey: "sql",
       header: "SQL",
+      meta: { className: "hidden lg:table-cell" },
       cell: ({ row }) => (
         <span className="font-mono text-[11px] text-muted-foreground max-w-[140px] truncate block">
           {truncate(row.original.sql, 30)}
@@ -139,19 +147,20 @@ export function RLHFTable({ entries, loading }: RLHFTableProps) {
     {
       accessorKey: "approved",
       header: "Approved",
+      meta: { className: "hidden md:table-cell" },
       cell: ({ row }) => {
         const ok = row.original.approved;
         if (ok === true) {
           return (
             <Badge variant="outline" className="text-emerald-500 border-emerald-500/20 bg-emerald-500/5 text-[10px] px-1.5 py-0">
-              ✓ yes
+              yes
             </Badge>
           );
         }
         if (ok === false) {
           return (
             <Badge variant="outline" className="text-red-500 border-red-500/20 bg-red-500/5 text-[10px] px-1.5 py-0">
-              ✗ no
+              no
             </Badge>
           );
         }
@@ -161,6 +170,7 @@ export function RLHFTable({ entries, loading }: RLHFTableProps) {
     {
       accessorKey: "session_id",
       header: "Session",
+      meta: { className: "hidden md:table-cell" },
       cell: ({ row }) => (
         <span className="font-mono text-[11px] text-muted-foreground whitespace-nowrap">
           {row.original.session_id ? row.original.session_id.slice(0, 12) + "…" : "—"}
@@ -170,13 +180,14 @@ export function RLHFTable({ entries, loading }: RLHFTableProps) {
     {
       accessorKey: "ts",
       header: "Time",
+      meta: { className: "hidden lg:table-cell" },
       cell: ({ row }) => (
         <span className="text-[11px] text-muted-foreground font-mono whitespace-nowrap">
           {fmtTs(row.original.ts)}
         </span>
       ),
     },
-  ];
+  ], []);
 
   return (
     <div className="space-y-4">
@@ -189,11 +200,11 @@ export function RLHFTable({ entries, loading }: RLHFTableProps) {
         </div>
         <div className="flex items-center gap-3">
           <div className="flex gap-1.5">
-            <Badge variant="outline" className="text-emerald-500 border-emerald-500/20 bg-emerald-500/5 text-[10px] px-2 py-0.5">
-              👍 {pos}
+            <Badge variant="outline" className="text-emerald-500 border-emerald-500/20 bg-emerald-500/5 text-[10px] px-2 py-0.5 flex items-center gap-1">
+              <ThumbsUp className="w-3 h-3" /> {pos}
             </Badge>
-            <Badge variant="outline" className="text-red-500 border-red-500/20 bg-red-500/5 text-[10px] px-2 py-0.5">
-              👎 {neg}
+            <Badge variant="outline" className="text-red-500 border-red-500/20 bg-red-500/5 text-[10px] px-2 py-0.5 flex items-center gap-1">
+              <ThumbsDown className="w-3 h-3" /> {neg}
             </Badge>
           </div>
           <Select value={signalFilter} onValueChange={setSignalFilter}>

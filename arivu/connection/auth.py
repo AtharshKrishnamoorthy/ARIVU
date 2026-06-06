@@ -300,21 +300,34 @@ def validate_mode(mode: str) -> None:
 def is_destructive(sql: str) -> bool:
     """
     Return True if the SQL statement is destructive (requires admin + RLHF gate).
-    Used by the query verifier node in the pipeline.
+    Checks for destructive keywords anywhere in the SQL to prevent bypass via CTEs.
     """
-    first_keyword = sql.strip().upper().split()[0] if sql.strip() else ""
-    return first_keyword in DESTRUCTIVE_STATEMENTS
+    sql_upper = sql.strip().upper()
+    for keyword in DESTRUCTIVE_STATEMENTS:
+        if keyword in sql_upper:
+            return True
+    return False
 
 
 def mode_permits(mode: str, sql: str) -> tuple[bool, str]:
     """
     Check whether the given mode permits execution of the SQL.
+    Checks for disallowed keywords anywhere in the SQL to prevent bypass via CTEs.
 
     Returns (permitted: bool, reason: str).
     """
-    first_keyword = sql.strip().upper().split()[0] if sql.strip() else ""
+    sql_upper = sql.strip().upper()
     allowed = MODE_PERMISSIONS[mode]["allowed_statements"]
 
+    for keyword in DESTRUCTIVE_STATEMENTS:
+        if keyword in sql_upper and keyword not in allowed:
+            return False, (
+                f"Mode '{mode}' does not permit '{keyword}' statements. "
+                f"Allowed: {', '.join(sorted(allowed))}"
+            )
+
+    cleaned_sql = sql_upper.lstrip("(\n\r\t ")
+    first_keyword = cleaned_sql.split()[0] if cleaned_sql.split() else ""
     if first_keyword not in allowed:
         return False, (
             f"Mode '{mode}' does not permit '{first_keyword}' statements. "

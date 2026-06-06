@@ -88,11 +88,52 @@ class DiscordIntegration(BaseIntegration):
     # ─────────────────────────────────────────
 
     def send_message(self, user_id: str, text: str) -> None:
-        """Sync send — used by BaseIntegration.handle_query()."""
-        import asyncio
-        asyncio.get_event_loop().run_until_complete(
-            self._send_dm(int(user_id), text)
+        """Send a message to a channel or DM.
+
+        When called from the scheduler (self._client is None), uses Discord's
+        REST API directly to post to a channel ID without needing the full bot.
+        When called from a live bot context, uses the async client path.
+        """
+        if self._client is None:
+            # REST path — used by the scheduler / automation runner
+            self._send_via_rest(user_id, text)
+        else:
+            # Async bot path — used when bot is running live
+            coro = self._send_dm(int(user_id), text)
+            _run_async_safe(coro)
+
+    def _send_via_rest(self, channel_id: str, text: str) -> None:
+        """Post a message to a Discord channel via REST API (no bot required)."""
+        try:
+            import httpx
+        except ImportError:
+            try:
+                import requests as _req
+                resp = _req.post(
+                    f"https://discord.com/api/v10/channels/{channel_id}/messages",
+                    headers={
+                        "Authorization": f"Bot {self.token}",
+                        "Content-Type": "application/json",
+                    },
+                    json={"content": text[:2000]},
+                    timeout=10,
+                )
+                resp.raise_for_status()
+                return
+            except ImportError:
+                raise ImportError("httpx or requests is required. Install with: pip install httpx")
+
+        resp = httpx.post(
+            f"https://discord.com/api/v10/channels/{channel_id}/messages",
+            headers={
+                "Authorization": f"Bot {self.token}",
+                "Content-Type": "application/json",
+            },
+            json={"content": text[:2000]},
+            timeout=10,
         )
+        resp.raise_for_status()
+
 
     def send_approval_request(
         self,
@@ -101,11 +142,10 @@ class DiscordIntegration(BaseIntegration):
         question: str,
         session_id: str,
     ) -> None:
-        import asyncio
+        """Send approval DM to admin users — event-loop safe."""
         for admin_id in (self.admin_user_ids or {int(user_id)}):
-            asyncio.get_event_loop().run_until_complete(
-                self._send_approval_dm(admin_id, sql, question, session_id)
-            )
+            coro = self._send_approval_dm(admin_id, sql, question, session_id)
+            _run_async_safe(coro)
 
     # ─────────────────────────────────────────
     # Client builder
@@ -316,3 +356,25 @@ def _save_rlhf(session_id: str, signal: str) -> None:
         save_rlhf_signal(session_id=session_id, question="", sql="", signal=signal)
     except Exception as exc:
         logger.warning(f"[discord] RLHF save failed: {exc}")
+
+
+def _run_async_safe(coro) -> None:
+    """
+    Execute an async coroutine safely from any thread context.
+
+    Uses ensure_future for fire-and-forget when inside a running event loop
+    (typical for Discord event handlers — avoids deadlocks), otherwise
+    falls back to asyncio.run() for non-async contexts and
+    run_coroutine_threadsafe for cross-thread calls.
+    """
+    import asyncio
+
+    try:
+        loop = asyncio.get_running_loop()
+        future = asyncio.ensure_future(coro, loop=loop)
+        future.add_done_callback(
+            lambda f: logger.error(f"[discord] async task failed: {f.exception()}")
+            if f.exception() else None
+        )
+    except RuntimeError:
+        asyncio.run(coro)

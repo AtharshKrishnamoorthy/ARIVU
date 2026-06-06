@@ -11,7 +11,7 @@
   <h3>The Agentic Database Command Center</h3>
 
   <p>
-    An open-source framework for orchestrating autonomous database agents, integrating seamless <strong>Text-to-SQL</strong> pipelines with a beautiful <strong>No-Code Observability Dashboard</strong>.
+    An open-source framework for orchestrating autonomous database agents, integrating seamless <strong>Text-to-SQL</strong> pipelines with a powerful <strong>Full-Stack Workspace & Observability Dashboard</strong>.
   </p>
 
   <p>
@@ -21,6 +21,10 @@
     <a href="https://arivu.mintlify.app/"><img src="https://img.shields.io/badge/Docs-Mintlify-047857" alt="Docs"></a>
     <a href="https://github.com/AtharshKrishnamoorthy/ARIVU/stargazers"><img src="https://img.shields.io/github/stars/AtharshKrishnamoorthy/ARIVU?style=social" alt="GitHub stars"></a>
   </p>
+  
+  <br />
+
+  <video src="https://github.com/AtharshKrishnamoorthy/ARIVU/raw/main/arivu/docs/images/motion-video.mp4" width="800" controls autoplay loop muted></video>
 </div>
 
 ---
@@ -29,18 +33,20 @@
 
 Arivu bridges the gap between your raw data warehouses and Large Language Models (LLMs). It isn't just a wrapper; it's a **dual-layer infrastructure**:
 
-1. **Python SDK:** A streamlined toolkit (`arivu-ai`) to embed text-to-SQL pipelines, manage database connections, and deploy conversational agents across multiple communication channels (Slack, Discord, WhatsApp, Telegram, REST).
-2. **Observability Dashboard:** A locally deployable Next.js dashboard that visualizes your AI pipeline traces, latency, LLM routing, and SQL execution logs in real-time.
+1. **Python SDK & MCP:** A streamlined toolkit (`arivu-ai`) to embed text-to-SQL pipelines, manage database connections, integrate seamlessly with IDEs via the Model Context Protocol (MCP), and deploy conversational agents across communication channels.
+2. **Full-Stack Workspace:** A locally deployable Next.js dashboard that provides an interactive chat interface, custom generative dashboards, DB explorer, automations, and granular pipeline tracing in real-time.
 
 ---
 
 ## ✨ Core Features
 
-- **Multi-Dialect Federation:** Securely connect and query across PostgreSQL, MySQL, and SQLite clusters using natural language.
+- **Multi-Dialect Federation:** Securely connect and query across PostgreSQL, MySQL, SQLite, Databricks, and Snowflake using natural language.
 - **Dynamic LLM Routing:** Hot-swap between OpenAI, Anthropic, Groq, DeepSeek, Ollama, and Hugging Face directly from your code or the dashboard.
-- **Agentic Workflows:** Arivu parses intent, generates optimized SQL, auto-corrects syntax errors, and formats structured responses automatically.
-- **Native Channels:** Deploy your database agents directly into Slack, Discord, Telegram, or WhatsApp using built-in adapters.
-- **End-to-End Tracing:** Visually debug agent reasoning and execution latency right from the observability dashboard.
+- **Agentic Chat & Generative UI:** Generate optimized SQL, auto-correct syntax errors, and instantly render interactive charts and data tables via the chat workspace.
+- **Workspace Tools:** Inspect schemas with the **DB Explorer**, curate **Saved Queries**, and pin insights to custom **Dashboards**.
+- **Automations & Channels:** Schedule automated reports and dispatch agents to Slack, Discord, Telegram, or Email using built-in adapters.
+- **MCP Native:** Expose your entire database seamlessly to AI editors like Cursor and Windsurf using our built-in Model Context Protocol server.
+- **End-to-End Tracing:** Visually debug agent reasoning, token usage, and execution latency right from the observability tab.
 
 ---
 
@@ -52,70 +58,157 @@ Install the core Python SDK via pip:
 pip install arivu-ai
 ```
 
-### 1. Simple Data Querying
+### 1. Connect to Your Database
 
-Connect to your database and interrogate it using natural language in just 4 lines of code:
+`Arivu.connect()` takes explicit host/port/user/password/dbname parameters — not a connection URL string. Choose between `user` (read-only) and `admin` (DML with approval gate) modes:
 
 ```python
 from arivu import Arivu
 
-# 1. Initialize the engine
-app = Arivu.connect(
-    database_url="postgresql://user:pass@localhost:5432/main",
-    llm_provider="openai",  # Or 'anthropic', 'groq', 'ollama', etc.
-    monitoring=True         # Enables dashboard tracing
+# Connect in read-only user mode
+db = Arivu.connect(
+    host="your-db-host",        # e.g. "db.example.supabase.com"
+    port=5432,
+    user="your-db-user",
+    password="your-db-password",
+    dbname="your-db-name",
+    mode="user",                # "user" (read-only) or "admin" (DML allowed)
+    ttl=3600,                   # schema cache TTL in seconds
+    dialect="postgresql",       # "postgresql", "mysql", or "sqlite"
 )
-
-# 2. Formulate your prompt
-query = app.query("What were our top 3 highest revenue products last quarter?")
-
-# 3. Execute the agentic pipeline
-results = app.run_pipeline(query)
-
-# 4. View results
-print(results.get("response"))
-print("Generated SQL:", results.get("sql"))
 ```
 
-### 2. Deploy to a Channel (e.g., Telegram)
-
-Arivu allows you to expose your database to authorized users via chat platforms:
+For **SQLite** (zero infrastructure):
 
 ```python
-from arivu.integrations import TelegramIntegration
+sqlite_db = Arivu.connect(
+    dialect="sqlite",
+    dbname="/path/to/your/local.db",
+    mode="user",
+)
+```
 
-# Pass your existing 'app' engine to the adapter
-bot = TelegramIntegration(
-  db=app,
-  token="YOUR_TELEGRAM_BOT_TOKEN",
+### 2. Run the Agentic Pipeline
+
+Use `db.query()` to prepare the pipeline input, then pass it to `run_pipeline()`:
+
+```python
+from arivu.pipeline import run_pipeline
+
+pipeline_input = db.query("Show me the top 10 customers by total spend")
+result = run_pipeline(pipeline_input)
+
+print(result.response)   # Natural language answer
+print(result.sql)        # The generated SQL
+print(result.success)    # True / False
+print(result.trace_events)  # Per-node latency trace
+```
+
+### 3. Admin Mode — Destructive SQL Approval Gate
+
+In `admin` mode, destructive operations (DROP, DELETE) are paused for human approval before execution:
+
+```python
+db_admin = Arivu.connect(
+    host="localhost", port=5432, user="admin",
+    password="admin_secret", dbname="ecommerce",
+    mode="admin",
 )
 
-# Start listening for messages!
-bot.start()
+result = run_pipeline(db_admin.query("drop the temp_staging table"))
+
+if result.pending_approval:
+    print("Waiting for human approval...")
+    print(f"SQL to approve: {result.sql}")
+    # Admin approves via Telegram /approve or REST API
+```
+
+### 4. Deploy to a Channel
+
+Connect Arivu to Telegram, WhatsApp, or expose it as a REST API:
+
+```python
+from arivu.integrations import TelegramIntegration, WhatsAppIntegration, RESTIntegration
+
+# Telegram bot
+telegram_bot = TelegramIntegration(
+    db=db,
+    token="YOUR_TELEGRAM_BOT_TOKEN",
+    admin_user_ids=[123456789],  # your numeric Telegram user ID
+)
+telegram_bot.start()  # blocking — runs until Ctrl+C
+
+# REST API (FastAPI)
+rest_api = RESTIntegration(db=db)
+rest_api.start(host="0.0.0.0", port=8000)
+
+# WhatsApp (via Twilio)
+whatsapp_bot = WhatsAppIntegration(
+    db=db,
+    admin_numbers=["+91XXXXXXXXXX"],
+)
+whatsapp_bot.start(host="0.0.0.0", port=8000)
+```
+
+### 5. Memory & Session History
+
+Arivu persists every interaction automatically. You can query the memory layer directly:
+
+```python
+from arivu.memory import load_session_history, get_pipeline_traces, get_rlhf_log
+
+# Load a session's conversation history
+history = load_session_history("sess-demo-001")
+
+# Retrieve per-node pipeline traces for observability
+traces = get_pipeline_traces(session_id="sess-demo-001", limit=5)
+
+# View RLHF feedback log
+log = get_rlhf_log(limit=10)
 ```
 
 ---
 
-## 📊 The Observability Dashboard
+## 💻 The Full-Stack Workspace
 
-Arivu ships with a stunning, no-code visual interface for monitoring your agents.
+Arivu ships with a stunning, no-code visual interface that acts as your complete command center. It provides Chat, Dashboards, DB Explorer, Saved Queries, Automations, and full pipeline tracing.
 
-To run the dashboard locally:
+### Recommended: Docker Compose
+
+The easiest way to launch the entire workspace is using Docker:
 
 ```bash
 # Clone the repository
 git clone https://github.com/AtharshKrishnamoorthy/ARIVU.git
 cd ARIVU
 
-# Navigate to the dashboard
-cd site
+# Launch the backend and frontend simultaneously
+docker compose up -d --build
+```
 
-# Install dependencies and start
+Visit `http://localhost:3000` to start visually interacting with your databases!
+
+### Manual Installation (Development)
+
+If you prefer to run the services manually without Docker:
+
+**1. Start the Backend:**
+```bash
+git clone https://github.com/AtharshKrishnamoorthy/ARIVU.git
+cd ARIVU
+pip install -r requirements.txt
+python -m arivu.dashboard.backend --port 8000
+```
+
+**2. Start the Frontend:**
+Open a new terminal window:
+```bash
+cd ARIVU/arivu/dashboard/frontend
 npm install
 npm run dev
 ```
 
-Visit `http://localhost:3000` to visually manage connections, test prompts, and trace pipeline executions.
+Visit `http://localhost:3000`.
 
 ---
 

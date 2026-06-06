@@ -155,8 +155,8 @@ export function ConnectorView() {
       await setActiveConnection(alias);
       await loadData();
       toast.success(`Active connection set to ${alias}`);
-    } catch (alert: any) {
-      toast.error("Failed to activate: " + alert.message);
+    } catch (err: any) {
+      toast.error("Failed to activate: " + err.message);
     } finally {
       setActivating(null);
     }
@@ -178,7 +178,7 @@ export function ConnectorView() {
         </p>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid lg:grid-cols-2 gap-6">
         <Card className="bg-card border-border h-max">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
@@ -199,7 +199,7 @@ export function ConnectorView() {
                 placeholder="e.g. Production DB" 
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">SQL Dialect</Label>
                 <Select value={config.dialect} onValueChange={handleDialectChange}>
@@ -250,7 +250,7 @@ export function ConnectorView() {
 
               {/* ── SQLite Fields ── */}
               {config.dialect === "sqlite" && (
-                <div className="col-span-2 space-y-1.5">
+                <div className="sm:col-span-2 space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Database File Path</Label>
                   <Input value={config.dbname} onChange={e => setConfig({...config, dbname: e.target.value})} className="h-8 text-xs" placeholder="/path/to/database.db" />
                 </div>
@@ -281,15 +281,15 @@ export function ConnectorView() {
               {/* ── Databricks Fields ── */}
               {config.dialect === "databricks" && (
                 <>
-                  <div className="col-span-2 space-y-1.5">
+                  <div className="sm:col-span-2 space-y-1.5">
                     <Label className="text-xs text-muted-foreground">Host</Label>
                     <Input value={config.host} onChange={e => setConfig({...config, host: e.target.value})} className="h-8 text-xs" placeholder="adb-123.azuredatabricks.net" />
                   </div>
-                  <div className="col-span-2 space-y-1.5">
+                  <div className="sm:col-span-2 space-y-1.5">
                     <Label className="text-xs text-muted-foreground">HTTP Path</Label>
                     <Input value={config.http_path || ""} onChange={e => setConfig({...config, http_path: e.target.value})} className="h-8 text-xs" placeholder="/sql/1.0/endpoints/abc123" />
                   </div>
-                  <div className="col-span-2 space-y-1.5">
+                  <div className="sm:col-span-2 space-y-1.5">
                     <Label className="text-xs text-muted-foreground">Access Token</Label>
                     <Input type="password" value={config.access_token || ""} onChange={e => setConfig({...config, access_token: e.target.value})} className="h-8 text-xs" placeholder="dapi..." />
                   </div>
@@ -317,7 +317,7 @@ export function ConnectorView() {
                     <Label className="text-xs text-muted-foreground">Username</Label>
                     <Input value={config.user} onChange={e => setConfig({...config, user: e.target.value})} className="h-8 text-xs" placeholder="postgres" />
                   </div>
-                  <div className={`${config.dialect === "snowflake" ? "" : "col-span-2"} space-y-1.5`}>
+                  <div className={`${config.dialect === "snowflake" ? "" : "sm:col-span-2"} space-y-1.5`}>
                     <Label className="text-xs text-muted-foreground">Password</Label>
                     <Input type="password" value={config.password} onChange={e => setConfig({...config, password: e.target.value})} className="h-8 text-xs" placeholder="••••••••" />
                   </div>

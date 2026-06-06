@@ -8,6 +8,7 @@ Supports all Arivu dialects: PostgreSQL, MySQL, SQLite, Snowflake, Databricks.
 
 Tools exposed:
     arivu_query              — ask a NL question, get a DB answer
+    arivu_execute_sql        — run raw SQL (bypasses safety pipeline)
     arivu_approve            — approve a pending destructive SQL
     arivu_reject             — reject a pending destructive SQL
     arivu_refresh_schema     — force schema re-extraction
@@ -105,10 +106,20 @@ def _build_connect_kwargs() -> dict:
         "mode": mode,
     }
 
+    def _safe_port(default: int = 5432) -> int:
+        raw = os.environ.get("ARIVU_DB_PORT")
+        if raw is None:
+            return default
+        try:
+            return int(raw)
+        except (ValueError, TypeError):
+            logger.warning(f"Invalid ARIVU_DB_PORT '{raw}', using default {default}")
+            return default
+
     if dialect in ("postgresql", "mysql"):
         connect_kwargs.update(
             host=os.environ.get("ARIVU_DB_HOST", "localhost"),
-            port=int(os.environ.get("ARIVU_DB_PORT", 5432)),
+            port=_safe_port(),
             user=os.environ.get("ARIVU_DB_USER"),
             password=os.environ.get("ARIVU_DB_PASSWORD"),
             dbname=os.environ.get("ARIVU_DB_NAME"),
@@ -119,26 +130,34 @@ def _build_connect_kwargs() -> dict:
         )
     elif dialect == "snowflake":
         connect_kwargs.update(
-            account=os.environ["ARIVU_SNOWFLAKE_ACCOUNT"],
+            account=os.environ.get("ARIVU_SNOWFLAKE_ACCOUNT"),
             user=os.environ.get("ARIVU_DB_USER"),
             password=os.environ.get("ARIVU_DB_PASSWORD"),
             dbname=os.environ.get("ARIVU_DB_NAME"),
             warehouse=os.environ.get("ARIVU_SNOWFLAKE_WAREHOUSE"),
             role=os.environ.get("ARIVU_SNOWFLAKE_ROLE"),
         )
+        if not connect_kwargs["account"]:
+            raise ValueError("ARIVU_SNOWFLAKE_ACCOUNT is required for snowflake dialect")
     elif dialect == "databricks":
         connect_kwargs.update(
-            host=os.environ["ARIVU_DB_HOST"],
-            http_path=os.environ["ARIVU_DATABRICKS_HTTP_PATH"],
-            access_token=os.environ["ARIVU_DATABRICKS_TOKEN"],
+            host=os.environ.get("ARIVU_DB_HOST"),
+            http_path=os.environ.get("ARIVU_DATABRICKS_HTTP_PATH"),
+            access_token=os.environ.get("ARIVU_DATABRICKS_TOKEN"),
             catalog=os.environ.get("ARIVU_DATABRICKS_CATALOG", "main"),
             schema_name=os.environ.get("ARIVU_DATABRICKS_SCHEMA", "default"),
         )
+        if not connect_kwargs["host"]:
+            raise ValueError("ARIVU_DB_HOST is required for databricks dialect")
+        if not connect_kwargs["http_path"]:
+            raise ValueError("ARIVU_DATABRICKS_HTTP_PATH is required for databricks dialect")
+        if not connect_kwargs["access_token"]:
+            raise ValueError("ARIVU_DATABRICKS_TOKEN is required for databricks dialect")
     else:
         # Future dialects — try basic RDBMS params
         connect_kwargs.update(
             host=os.environ.get("ARIVU_DB_HOST", "localhost"),
-            port=int(os.environ.get("ARIVU_DB_PORT", 5432)),
+            port=_safe_port(),
             user=os.environ.get("ARIVU_DB_USER"),
             password=os.environ.get("ARIVU_DB_PASSWORD"),
             dbname=os.environ.get("ARIVU_DB_NAME"),
@@ -151,18 +170,30 @@ def _build_connect_kwargs() -> dict:
 async def lifespan(server: FastMCP):
     """Connect to the DB at startup, close at shutdown."""
     from arivu.connection.core import Arivu
+    from arivu.connection.exceptions import ArivuError
 
-    connect_kwargs = _build_connect_kwargs()
-    dialect = connect_kwargs.get("dialect", "postgresql")
+    try:
+        connect_kwargs = _build_connect_kwargs()
+        dialect = connect_kwargs.get("dialect", "postgresql")
 
-    logger.info(f"Arivu MCP: connecting to {dialect} database...")
-    db = Arivu.connect(**connect_kwargs)
-    logger.info("Arivu MCP: connected.")
+        logger.info(f"Arivu MCP: connecting to {dialect} database...")
+        db = Arivu.connect(**connect_kwargs)
+        logger.info("Arivu MCP: connected.")
+    except ArivuError as exc:
+        logger.error(f"Arivu MCP: connection failed — {exc}")
+        raise
+    except Exception as exc:
+        logger.error(f"Arivu MCP: unexpected startup error — {exc}")
+        raise RuntimeError(f"Failed to initialize Arivu MCP: {exc}") from exc
 
-    yield {"db": db}
-
-    db.close()
-    logger.info("Arivu MCP: connection closed.")
+    try:
+        yield {"db": db}
+    finally:
+        try:
+            db.close()
+            logger.info("Arivu MCP: connection closed.")
+        except Exception as exc:
+            logger.warning(f"Arivu MCP: error during shutdown — {exc}")
 
 
 mcp = FastMCP("arivu_mcp", lifespan=lifespan)
@@ -223,6 +254,23 @@ class SessionHistoryInput(BaseModel):
     )
 
 
+class ExecuteSQLInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    sql: str = Field(
+        ...,
+        description="Raw SQL statement to execute.",
+        min_length=1,
+        max_length=50_000,
+    )
+    max_rows: int = Field(
+        default=100,
+        description="Maximum number of rows to return.",
+        ge=1,
+        le=1000,
+    )
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Tools
 # ─────────────────────────────────────────────────────────────────────────────
@@ -258,14 +306,14 @@ async def arivu_query(params: QueryInput, ctx: Context) -> str:
     """
     db = ctx.request_context.lifespan_state["db"]
 
-    from arivu.pipeline.runner import run_pipeline
+    from arivu.pipeline.runner import run_pipeline_async
 
     await ctx.report_progress(0.1, "Running pipeline...")
 
     pipeline_input = db.query(params.question)
     pipeline_input["session_id"] = f"mcp:{params.user_id}"
 
-    result = run_pipeline(pipeline_input)
+    result = await run_pipeline_async(pipeline_input)
 
     await ctx.report_progress(1.0, "Done.")
 
@@ -334,7 +382,7 @@ async def arivu_approve(params: SessionInput, ctx: Context) -> str:
             "status":  "error",
             "message": f"Approval granted but execution failed: {exc}",
             "sql":     pending["sql"],
-        })
+        }, indent=2)
 
 
 @mcp.tool(name="arivu_reject")
@@ -608,6 +656,63 @@ async def arivu_list_dialects(ctx: Context) -> str:
     """
     from arivu.connection.auth import list_dialects
     return json.dumps(list_dialects(), indent=2)
+
+
+@mcp.tool(name="arivu_execute_sql")
+async def arivu_execute_sql(params: ExecuteSQLInput, ctx: Context) -> str:
+    """
+    Execute raw SQL directly against the database.
+
+    WARNING: This bypasses the Arivu safety pipeline. Destructive operations
+    (DROP, DELETE, TRUNCATE) will execute immediately without approval.
+    Use arivu_query for safe, LLM-mediated access instead.
+
+    Args:
+        params (ExecuteSQLInput):
+            - sql      (str): Raw SQL to execute
+            - max_rows (int): Max rows to return (default 100, max 1000)
+
+    Returns:
+        str: JSON with keys:
+            - columns (list) — column names
+            - rows    (list) — result rows (truncated to max_rows)
+            - row_count (int) — total rows returned
+            - truncated (bool) — whether results were clipped
+    """
+    from sqlalchemy import text
+
+    db = ctx.request_context.lifespan_state["db"]
+
+    try:
+        with db._engine.connect() as conn:
+            result = conn.execute(text(params.sql))
+
+            if result.returns_rows:
+                columns = list(result.keys())
+                all_rows = [dict(row) for row in result]
+                truncated = len(all_rows) > params.max_rows
+                rows = all_rows[:params.max_rows]
+                return json.dumps({
+                    "columns": columns,
+                    "rows": rows,
+                    "row_count": len(rows),
+                    "truncated": truncated,
+                }, indent=2, default=str)
+            else:
+                conn.commit()
+                affected = result.rowcount if result.rowcount is not None else 0
+                return json.dumps({
+                    "status": "executed",
+                    "rows_affected": affected,
+                    "message": f"Statement executed. {affected} row(s) affected.",
+                }, indent=2)
+
+    except Exception as exc:
+        return json.dumps({
+            "status": "error",
+            "message": str(exc),
+            "sql": params.sql,
+        }, indent=2)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

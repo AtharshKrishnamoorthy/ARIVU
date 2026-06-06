@@ -35,7 +35,7 @@ def create_dashboard_app():
             "Install with: pip install fastapi uvicorn"
         )
 
-    from .routers import monitoring, connections, llm, chat, visualize, export, suggestions, automations, settings, dashboards
+    from .routers import monitoring, connections, llm, chat, visualize, export, suggestions, automations, settings, dashboards, saved_queries, explorer, integrations
     from ...memory.store import get_active_connection, get_connections
     from ...connection.core import Arivu
 
@@ -47,6 +47,26 @@ def create_dashboard_app():
         app.state.arivu_db = None
 
     _init_global_state()
+
+    # ── Rate limiting (slowapi) ────────────────────────────────────────────
+    try:
+        from slowapi import Limiter
+        from slowapi.util import get_remote_address
+        from slowapi.errors import RateLimitExceeded
+
+        limiter = Limiter(key_func=get_remote_address)
+        app.state.limiter = limiter
+
+        @app.exception_handler(RateLimitExceeded)
+        async def _rate_limit_handler(request, exc):
+            from fastapi.responses import JSONResponse
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Rate limit exceeded. Please try again later."},
+            )
+    except ImportError:
+        limiter = None
+        app.state.limiter = None
 
     app.add_middleware(
         CORSMiddleware,
@@ -91,6 +111,9 @@ def create_dashboard_app():
     app.include_router(automations.router)
     app.include_router(settings.router)
     app.include_router(dashboards.router)
+    app.include_router(saved_queries.router)
+    app.include_router(explorer.router)
+    app.include_router(integrations.router)
 
     # ── Load scheduled automations on startup ────────────────────────────
     try:

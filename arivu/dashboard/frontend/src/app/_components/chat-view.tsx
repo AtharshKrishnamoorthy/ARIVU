@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Send, User, Bot, AlertTriangle, Database, BarChart3, Loader2, Pin, Check } from "lucide-react";
+import { Send, User, Bot, AlertTriangle, Database, BarChart3, Loader2, Pin, Gauge } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,10 +10,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
-  chatDB, fetchConnections, setActiveConnection, visualizeData,
-  fetchDashboards, addDashboardWidget, type Dashboard
+  chatDB, chatDBStream, fetchConnections, setActiveConnection, visualizeData,
+  fetchDashboards, addDashboardWidget, type Dashboard, fetchConfig
 } from "../../../services/api";
+import type { RateLimitConfig } from "../../../services/types";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { SaveQueryDialog } from "@/components/SaveQueryDialog";
 
 /* ── Thesys C1 Generative UI ─────────────────────────────────────────────── */
 let C1Component: any = null;
@@ -32,6 +34,24 @@ function loadC1() {
   }
 }
 
+/** Tracks the resolved dark/light theme from the <html> element */
+function useResolvedTheme(): "dark" | "light" {
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    if (typeof document === "undefined") return "dark";
+    return document.documentElement.classList.contains("dark") ? "dark" : "light";
+  });
+
+  useEffect(() => {
+    const update = () =>
+      setTheme(document.documentElement.classList.contains("dark") ? "dark" : "light");
+    const obs = new MutationObserver(update);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => obs.disconnect();
+  }, []);
+
+  return theme;
+}
+
 /* ── Types ────────────────────────────────────────────────────────────────── */
 type Message = {
   role: "user" | "bot";
@@ -43,14 +63,31 @@ type Message = {
   c1_response?: string | null;
   visualizing?: boolean;
   question_text?: string; // original question for this exchange
+  results_truncated?: boolean;
+  limits?: {
+    max_query_chars: number;
+    max_result_rows: number;
+    max_retries: number;
+  };
 };
 
 /* ── Component ────────────────────────────────────────────────────────────── */
 export function ChatView() {
+  const resolvedTheme = useResolvedTheme();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [sessionId] = useState(() => "web_" + Math.random().toString(36).substring(7));
+  const [sessionId, setSessionId] = useState(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("arivu_chat_session");
+      if (stored) return stored;
+    }
+    const fresh = "web_" + Math.random().toString(36).substring(7);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("arivu_chat_session", fresh);
+    }
+    return fresh;
+  });
 
   const [connections, setConnections] = useState<any[]>([]);
   const [activeAlias, setActiveAlias] = useState<string>("");
@@ -58,16 +95,22 @@ export function ChatView() {
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const [rateConfig, setRateConfig] = useState<RateLimitConfig | null>(null);
+  const [lastChars, setLastChars] = useState<number>(0);
+  const [lastRows, setLastRows] = useState<number>(0);
+  const [wasTruncated, setWasTruncated] = useState<boolean>(false);
+  const [lastLimits, setLastLimits] = useState<any | null>(null);
+
   useEffect(() => {
     loadC1();
     fetchConnections().then(res => {
-      if (res) {
-        setConnections(res.connections || []);
-        // Intentionally not setting activeAlias here to force manual connection per session
-      }
+      if (res) setConnections(res.connections || []);
     });
     fetchDashboards().then(res => {
       if (res) setDashboards(res.dashboards || []);
+    });
+    fetchConfig().then(cfg => {
+      if (cfg) setRateConfig(cfg);
     });
   }, []);
 
@@ -122,23 +165,55 @@ export function ChatView() {
     setMessages(prev => [...prev, { role: "user", content: msg }]);
     setLoading(true);
 
+    const progressIdx = messages.length + 1;
+    setMessages(prev => [...prev, {
+      role: "bot",
+      content: "Processing...",
+      sql: null,
+      error: null,
+      raw_result: null,
+      has_tabular_data: false,
+      question_text: msg,
+    }]);
+
     try {
-      const res = await chatDB(msg, sessionId);
-      setMessages(prev => [...prev, {
-        role: "bot",
-        content: res.response,
-        sql: res.sql,
-        error: res.error,
-        raw_result: res.raw_result || null,
-        has_tabular_data: res.has_tabular_data || false,
-        question_text: msg,
-      }]);
+      await chatDBStream(msg, sessionId, {
+        onProgress: (text) => {
+          setMessages(prev => prev.map((m, i) =>
+            i === progressIdx ? { ...m, content: text } : m
+          ));
+        },
+        onDone: (res) => {
+          const sqlLength = res.sql ? res.sql.length : 0;
+          const resultRows = res.raw_result ? res.raw_result.length : 0;
+          setLastChars(sqlLength);
+          setLastRows(resultRows);
+          setWasTruncated(res.results_truncated || false);
+          setLastLimits(res.limits);
+
+          setMessages(prev => prev.map((m, i) =>
+            i === progressIdx ? {
+              ...m,
+              content: res.response,
+              sql: res.sql,
+              error: res.error,
+              raw_result: res.raw_result || null,
+              has_tabular_data: res.has_tabular_data || false,
+              results_truncated: res.results_truncated || false,
+              limits: res.limits,
+            } : m
+          ));
+        },
+        onError: (err) => {
+          setMessages(prev => prev.map((m, i) =>
+            i === progressIdx ? { ...m, content: "", error: err } : m
+          ));
+        },
+      });
     } catch (e: any) {
-      setMessages(prev => [...prev, {
-        role: "bot",
-        content: "",
-        error: e.message || "Failed to process message."
-      }]);
+      setMessages(prev => prev.map((m, i) =>
+        i === progressIdx ? { ...m, content: "", error: e.message || "Failed to process message." } : m
+      ));
     } finally {
       setLoading(false);
     }
@@ -184,7 +259,7 @@ export function ChatView() {
   };
 
   return (
-    <Card className="bg-card border-border flex flex-col h-[75vh] min-h-[600px] w-full max-w-6xl mx-auto shadow-sm">
+    <Card className="bg-card border-border flex flex-col h-[calc(100dvh-7rem)] sm:h-[calc(100vh-10rem)] max-h-[800px] min-h-[400px] w-full max-w-6xl mx-auto shadow-sm">
       <CardHeader className="border-b border-border pb-4">
         <div className="flex justify-between items-center">
           <div>
@@ -207,7 +282,7 @@ export function ChatView() {
               onValueChange={handleSwitchConnection}
               disabled={switching || connections.length === 0}
             >
-              <SelectTrigger className="h-8 min-w-40 text-xs font-semibold">
+              <SelectTrigger className="h-8 w-[140px] sm:min-w-40 text-xs font-semibold">
                 <SelectValue placeholder="Select connection" />
               </SelectTrigger>
               <SelectContent>
@@ -229,6 +304,37 @@ export function ChatView() {
         </div>
       </CardHeader>
 
+      {activeAlias && activeAlias !== "none" && (
+        <div className="px-4 py-1.5 border-b border-border bg-muted/20 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-muted-foreground">
+          <div className="flex items-center gap-1.5">
+            <Gauge className="w-3 h-3" />
+            <span className="font-medium">Rate Limits</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span>Query:</span>
+            <span className={lastChars > ((lastLimits?.max_query_chars || 10000) * 0.8) ? "text-amber-500 font-semibold" : "text-foreground/70 font-mono"}>{lastChars}</span>
+            <span>/</span>
+            <span className="font-mono">{(lastLimits?.max_query_chars || 10000).toLocaleString()}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span>Rows:</span>
+            <span className={wasTruncated ? "text-amber-500 font-semibold" : "text-foreground/70 font-mono"}>{lastRows}</span>
+            <span>/</span>
+            <span className="font-mono">{(lastLimits?.max_result_rows || 10000).toLocaleString()}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span>Max Retries:</span>
+            <span className="font-mono text-foreground/70">{lastLimits?.max_retries || 3}</span>
+          </div>
+          {wasTruncated && (
+            <div className="flex items-center gap-1 ml-auto text-amber-500 font-medium">
+              <AlertTriangle className="w-3 h-3" />
+              <span>Results truncated</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {!activeAlias || activeAlias === "none" ? (
         <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-muted/10">
           <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
@@ -241,7 +347,7 @@ export function ChatView() {
         </div>
       ) : (
         <>
-          <ScrollArea className="flex-1 p-4">
+          <ScrollArea className="flex-1 p-3 sm:p-4">
             <div className="space-y-4">
               {messages.length === 0 && (
                 <div className="text-center text-muted-foreground text-xs mt-20">
@@ -254,7 +360,7 @@ export function ChatView() {
                 {m.role === "user" ? <User size={16} /> : <Bot size={16} />}
               </div>
 
-              <div className={`relative max-w-[80%] space-y-2 ${m.role === "user" ? "items-end" : "items-start"}`}>
+              <div className={`relative max-w-[90%] sm:max-w-[80%] space-y-2 ${m.role === "user" ? "items-end" : "items-start"}`}>
                 {m.c1_response && C1Component && (
                   <div className="absolute -top-2 right-2 z-50">
                     <DropdownMenu>
@@ -284,8 +390,27 @@ export function ChatView() {
                 ) : (
                   <>
                     {m.sql && (
-                      <div className="bg-muted border border-border rounded-md px-3 py-2 text-[11px] font-mono text-teal-600 dark:text-teal-400 whitespace-pre-wrap">
-                        {m.sql}
+                      <div className="space-y-2">
+                        <div className="bg-muted border border-border rounded-md px-3 py-2 text-[11px] font-mono text-teal-600 dark:text-teal-400 whitespace-pre-wrap">
+                          {m.sql}
+                        </div>
+                        <div className="flex justify-end">
+                          <SaveQueryDialog
+                            sessionId={sessionId}
+                            query={m.question_text || m.content || ""}
+                            sql={m.sql}
+                            trigger={
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-[10px] text-muted-foreground hover:text-foreground gap-1.5"
+                              >
+                                <Pin className="w-3 h-3" />
+                                Save Query
+                              </Button>
+                            }
+                          />
+                        </div>
                       </div>
                     )}
 
@@ -328,11 +453,11 @@ export function ChatView() {
                       <div className="mt-2 rounded-lg border border-border bg-card/50 overflow-hidden relative">
                         
                         {ThemeProvider ? (
-                          <ThemeProvider>
-                            <C1Component c1Response={m.c1_response} />
+                          <ThemeProvider theme={resolvedTheme}>
+                            <C1Component c1Response={m.c1_response} theme={resolvedTheme} />
                           </ThemeProvider>
                         ) : (
-                          <C1Component c1Response={m.c1_response} />
+                          <C1Component c1Response={m.c1_response} theme={resolvedTheme} />
                         )}
                       </div>
                     )}
@@ -347,7 +472,11 @@ export function ChatView() {
                 <Bot size={16} />
               </div>
               <div className="px-4 py-2 text-sm rounded-lg bg-card border border-border">
-                <span className="animate-pulse">Thinking...</span>
+                <div className="flex items-center gap-1.5">
+                  {[0, 0.15, 0.3].map((d, i) => (
+                    <div key={i} className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce" style={{ animationDelay: `${d}s` }} />
+                  ))}
+                </div>
               </div>
             </div>
           )}
@@ -355,7 +484,7 @@ export function ChatView() {
         </div>
       </ScrollArea>
 
-      <div className="p-4 border-t border-border mt-auto">
+      <div className="p-3 sm:p-4 border-t border-border mt-auto pb-safe">
         <form
           className="flex items-center gap-2"
           onSubmit={e => { e.preventDefault(); handleSend(); }}

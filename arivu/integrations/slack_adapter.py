@@ -43,7 +43,7 @@ import os
 from typing import Optional
 
 from .base import BaseIntegration
-from ..connection.core import ARIVU
+from ..connection.core import Arivu
 
 logger = logging.getLogger("arivu.integrations.slack")
 
@@ -60,7 +60,7 @@ class SlackIntegration(BaseIntegration):
 
     def __init__(
         self,
-        db: ARIVU,
+        db: Arivu,
         bot_token: Optional[str] = None,
         app_token: Optional[str] = None,
         signing_secret: Optional[str] = None,
@@ -72,6 +72,7 @@ class SlackIntegration(BaseIntegration):
         self.signing_secret = signing_secret or os.environ.get("SLACK_SIGNING_SECRET", "")
         self.admin_user_ids = set(admin_user_ids or [])
         self._app = None
+        self._webclient = None
 
     # ─────────────────────────────────────────
     # Lifecycle
@@ -108,9 +109,23 @@ class SlackIntegration(BaseIntegration):
     # Send helpers
     # ─────────────────────────────────────────
 
+    @property
+    def _client(self):
+        """Lazy standalone WebClient — works without calling start() / _build_app()."""
+        if self._webclient is None:
+            try:
+                from slack_sdk import WebClient
+            except ImportError:
+                raise ImportError(
+                    "slack-sdk is required for sending messages. "
+                    "Install with: pip install slack-sdk"
+                )
+            self._webclient = WebClient(token=self.bot_token)
+        return self._webclient
+
     def send_message(self, user_id: str, text: str) -> None:
-        """Send a DM to the user."""
-        self._app.client.chat_postMessage(
+        """Send a message to a channel or DM — works with or without start()."""
+        self._client.chat_postMessage(
             channel=user_id,
             text=text,
             mrkdwn=True,
@@ -126,11 +141,12 @@ class SlackIntegration(BaseIntegration):
         """Send Block Kit approval message to all admin users."""
         blocks = _build_approval_blocks(sql, question, session_id)
         for admin_id in (self.admin_user_ids or {user_id}):
-            self._app.client.chat_postMessage(
+            self._client.chat_postMessage(
                 channel=admin_id,
                 text=f"Approval required: {question}",
                 blocks=blocks,
             )
+
 
     # ─────────────────────────────────────────
     # App builder

@@ -23,6 +23,7 @@ Node order:
 
 from __future__ import annotations
 
+import re
 import time
 import logging
 from typing import Any
@@ -34,6 +35,34 @@ from .state import GraphState
 from ..connection.auth import mode_permits, is_destructive
 
 logger = logging.getLogger("arivu.pipeline")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Retriable DB Error Detection
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _is_retriable_db_error(exc: Exception) -> bool:
+    """
+    Determine if a DB error is retriable (can be fixed by SQL regeneration).
+    Returns True if the error matches patterns like grouping misuse,
+    window function issues, or syntax problems that the LLM can address.
+    """
+    err_text = str(exc).lower()
+    retriable_patterns = [
+        r"must appear in the group by clause",
+        r"cannot be used in the select list without an aggregate",
+        r"window function.+cannot be used with group by",
+        r"column .+ does not exist",
+        r"syntax error",
+        r"relation .+ does not exist",
+        r"table .+ does not exist",
+        r"no such table",
+        r"no such column",
+    ]
+    for pattern in retriable_patterns:
+        if re.search(pattern, err_text, re.IGNORECASE):
+            return True
+    return False
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Shared LLM helper (uses the arivu.llm multi-provider abstraction layer)
@@ -51,6 +80,52 @@ def _get_llm():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Dialect-aware prompt hints  (SCHEMA-08)
+# ─────────────────────────────────────────────────────────────────────────────
+
+DIALECT_NOTES = {
+    "postgresql": (
+        "Use PostgreSQL syntax. "
+        "Identifiers in double quotes if needed. "
+        "Date functions: NOW(), CURRENT_DATE, CURRENT_TIMESTAMP. "
+        "String aggregation: STRING_AGG(col, delimiter). "
+        "Pattern matching: ILIKE for case-insensitive, ~ for regex. "
+        "To list tables: SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'. "
+        "To list columns: SELECT column_name FROM information_schema.columns WHERE table_name = 'table_name'."
+    ),
+    "mysql": (
+        "Use MySQL syntax. "
+        "Identifiers in backticks if needed. "
+        "Date functions: NOW(), CURDATE(). "
+        "String aggregation: GROUP_CONCAT(col SEPARATOR ','). "
+        "Pattern matching: LIKE for simple, REGEXP for regex. "
+        "To list tables: SHOW TABLES. "
+        "To list columns: SHOW COLUMNS FROM table_name."
+    ),
+    "sqlite": (
+        "Use SQLite syntax. Identifiers in double quotes or backticks. "
+        "Date functions: datetime('now'), date('now'). "
+        "To list tables: SELECT name FROM sqlite_master WHERE type='table'. "
+        "To list columns: PRAGMA table_info('table_name')."
+    ),
+    "snowflake": (
+        "Use Snowflake SQL. "
+        "Identifiers in double quotes. "
+        "String aggregation: LISTAGG(col, ',') WITHIN GROUP (ORDER BY ...). "
+        "To list tables: SELECT table_name FROM information_schema.tables. "
+        "To list columns: SELECT column_name FROM information_schema.columns WHERE table_name = 'table_name'."
+    ),
+    "databricks": (
+        "Use Databricks SQL (Spark-compatible). "
+        "Identifiers in backticks. "
+        "String aggregation: CONCAT_WS(',', COLLECT_LIST(col)). "
+        "To list tables: SHOW TABLES. "
+        "To list columns: SHOW COLUMNS IN table_name."
+    ),
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # NODE 1 — Query Intake
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -60,7 +135,6 @@ def query_intake_node(state: GraphState) -> GraphState:
     Schema staleness is already handled by db.query() before this runs.
     """
     t0 = time.perf_counter()
-    print(f"  ├─ [1/10] query_intake        session={state.session_id[:12]}", flush=True)
     logger.info(f"[query_intake] session={state.session_id}  q='{state.question[:60]}'")
 
     try:
@@ -72,7 +146,7 @@ def query_intake_node(state: GraphState) -> GraphState:
         if history:
             context = _format_history(history)
             state.question = f"{context}\n\nCurrent question: {state.question}"
-            print(f"  │   history_turns={len(history)}", flush=True)
+            logger.debug(f"[query_intake] history_turns={len(history)}")
 
         state.retry_count = 0
         state.result_retry_count = 0
@@ -94,18 +168,32 @@ def sql_generator_node(state: GraphState) -> GraphState:
     Translate the NL question into SQL using schema context + conversation
     history. On a retry, the verifier's error feedback is appended to the
     prompt so the LLM self-corrects.
+
+    Schema bloat guard (PROD-04):
+      If the FAISS schema vector store is available, only the top-k most
+      semantically relevant table definitions are injected into the prompt
+      instead of the full schema dump. Falls back to the full schema_ctx
+      when no vector store is present (e.g. zero-table DBs or embedded mode).
     """
     t0 = time.perf_counter()
-    print(f"  ├─ [2/10] sql_generator       attempt={state.retry_count + 1}", flush=True)
     logger.info(f"[sql_generator] attempt={state.retry_count + 1}")
 
     try:
         llm = _get_llm()
+
+        filtered_schema = _select_relevant_schema(
+            question=state.question,
+            full_schema_ctx=state.schema_ctx,
+            vector_store=state.vector_store,
+            dialect=state.dialect,
+        )
+
         prompt = _build_sql_prompt(
             question=state.question,
-            schema_ctx=state.schema_ctx,
+            schema_ctx=filtered_schema,
             error_feedback=state.verifier_error,
             mode=state.mode,
+            dialect=state.dialect,
         )
         response = llm.invoke(prompt)
         state.sql = _extract_sql(response.content)
@@ -140,7 +228,6 @@ def query_verifier_node(state: GraphState) -> GraphState:
     knows why it's being retried.
     """
     t0 = time.perf_counter()
-    print(f"  ├─ [3/10] query_verifier      sql='{(state.sql or '')[:50]}'", flush=True)
     logger.info(f"[query_verifier] sql='{state.sql[:80]}'")
 
     if not state.sql or not state.sql.strip():
@@ -163,7 +250,8 @@ def query_verifier_node(state: GraphState) -> GraphState:
         logger.info(f"[query_verifier] destructive op detected — RLHF gate required")
 
     # Basic syntax sanity (no full parse, just keyword check)
-    sql_upper = state.sql.strip().upper()
+    # Strip any leading parentheses or whitespaces to handle UNIONs and subqueries correctly
+    sql_upper = state.sql.strip().upper().lstrip("(\n\r\t ")
     valid_starts = {"SELECT", "INSERT", "UPDATE", "DELETE", "ALTER", "DROP", "CREATE", "WITH", "TRUNCATE"}
     first_word = sql_upper.split()[0] if sql_upper.split() else ""
     if first_word not in valid_starts:
@@ -193,10 +281,8 @@ def admin_approval_node(state: GraphState) -> GraphState:
     integration layer calling db.approve(session_id) or db.reject(session_id).
     """
     t0 = time.perf_counter()
-    print(f"  ├─ [3b] admin_approval        PENDING — sql='{state.sql[:50]}'", flush=True)
     logger.warning(
-        f"[admin_approval] PENDING APPROVAL  "
-        f"session={state.session_id}  sql='{state.sql}'"
+        f"[admin_approval] PENDING  session={state.session_id}"
     )
 
     from ..memory.store import save_pending_approval
@@ -204,6 +290,7 @@ def admin_approval_node(state: GraphState) -> GraphState:
         session_id=state.session_id,
         sql=state.sql,
         question=state.question,
+        db_alias=state.db_alias,
     )
 
     state.approved = None   # integration layer will flip this
@@ -221,11 +308,26 @@ def admin_approval_node(state: GraphState) -> GraphState:
 def db_execution_node(state: GraphState) -> GraphState:
     """
     Execute the verified SQL against the DB and capture raw rows.
+
+    Sanity-checks (CRIT-01 fixes):
+      - Stacked statement guard
+      - Dangerous built-in / file-system function blocks
+      - Character limit
+
     Any SQLAlchemy exception is caught here — the error boundary handles routing.
     """
+    from .sanitizer import sanitize_sql
+
     t0 = time.perf_counter()
-    print(f"  ├─ [4/10] db_execution        sql='{(state.sql or '')[:50]}'", flush=True)
-    logger.info(f"[db_execution] sql='{state.sql[:80]}'")
+    logger.info(f"[db_execution] executing  sql='{state.sql[:80]}'")
+
+    # ── Sanity check before touching the DB ──────────────────────────────
+    safe, reason = sanitize_sql(state.sql)
+    if not safe:
+        state.set_error("db_execution", RuntimeError(f"SQL rejected: {reason}"))
+        logger.warning(f"[db_execution] rejected: {reason}")
+        state.record_trace("db_execution", "fail", _ms(t0), detail=reason)
+        return state
 
     try:
         with state.engine.connect() as conn:
@@ -241,24 +343,51 @@ def db_execution_node(state: GraphState) -> GraphState:
                 conn.commit()
                 affected = result.rowcount if result.rowcount is not None else 0
                 state.raw_result = [{"rows_affected": affected, "status": "success"}]
-                print(f"  │   ✔ dml committed            rows_affected={affected}", flush=True)
+                logger.info(f"[db_execution] dml committed  rows_affected={affected}")
 
         logger.info(f"[db_execution] rows={len(state.raw_result)}")
-        print(f"  │   ✔ db_execution done       rows={len(state.raw_result)}", flush=True)
+        logger.info(f"[db_execution] complete  rows={len(state.raw_result)}")
         state.record_trace(
             "db_execution", "ok", _ms(t0),
             detail=f"rows={len(state.raw_result)}"
         )
 
     except SQLAlchemyError as exc:
-        state.set_error("db_execution", exc)
-        state.record_trace("db_execution", "fail", _ms(t0), detail=str(exc))
+        err_text = str(exc)
+        if _is_retriable_db_error(exc):
+            # Surface to SQL generator as verifier feedback and attempt retry
+            state.verifier_error = f"DB execution error: {err_text}"
+            state.retry_count += 1
+            state.record_trace("db_execution", "retry", _ms(t0), detail=state.verifier_error)
+            logger.info(f"[db_execution] retriable error surfaced to verifier: {err_text[:100]}")
+        else:
+            # Non-retriable — treat as terminal execution error
+            state.set_error("db_execution", exc)
+            state.record_trace("db_execution", "fail", _ms(t0), detail=err_text)
 
     except Exception as exc:
         state.set_error("db_execution", exc)
         state.record_trace("db_execution", "fail", _ms(t0), detail=str(exc))
 
     return state
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Shared embedding model cache (avoids reloading on every query)
+# ─────────────────────────────────────────────────────────────────────────────
+
+_embeddings_cache = None
+
+def _get_embeddings():
+    """Return a cached embedding model instance."""
+    global _embeddings_cache
+    if _embeddings_cache is None:
+        from langchain_huggingface import HuggingFaceEmbeddings
+        _embeddings_cache = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-MiniLM-L6-v2",
+            model_kwargs={"device": "cpu"},
+        )
+    return _embeddings_cache
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -274,7 +403,6 @@ def result_embedder_node(state: GraphState) -> GraphState:
     Avoids context-bloating the LLM with all rows at once.
     """
     t0 = time.perf_counter()
-    print(f"  ├─ [5/10] result_embedder     rows={len(state.raw_result)}", flush=True)
     logger.info(f"[result_embedder] rows={len(state.raw_result)}")
 
     if not state.raw_result:
@@ -284,12 +412,8 @@ def result_embedder_node(state: GraphState) -> GraphState:
     try:
         from langchain_community.vectorstores import FAISS
         from langchain_core.documents import Document
-        from langchain_huggingface import HuggingFaceEmbeddings
 
-        embeddings = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2",
-            model_kwargs={"device": "cpu"},
-        )
+        embeddings = _get_embeddings()
 
         docs = [
             Document(
@@ -323,7 +447,6 @@ def retrieval_agent_node(state: GraphState) -> GraphState:
     Re-ranking is done by cosine similarity score.
     """
     t0 = time.perf_counter()
-    print(f"  ├─ [6/10] retrieval_agent     q='{state.question[:40]}'", flush=True)
     logger.info(f"[retrieval_agent] fetching top-k for '{state.question[:60]}'")
 
     if state.result_vector_store is None:
@@ -366,8 +489,7 @@ def result_verifier_node(state: GraphState) -> GraphState:
     can try a different top-k or re-rank strategy.
     """
     t0 = time.perf_counter()
-    print(f"  ├─ [7/10] result_verifier     chunks={len(state.retrieved_chunks)}", flush=True)
-    logger.info(f"[result_verifier] checking {len(state.retrieved_chunks)} chunks")
+    logger.info(f"[result_verifier] chunks={len(state.retrieved_chunks)}")
 
     if not state.retrieved_chunks:
         state.result_verifier_error = "No results retrieved from the database."
@@ -421,7 +543,6 @@ def response_generator_node(state: GraphState) -> GraphState:
     The LLM is given the question, the SQL that was run, and the top-k rows.
     """
     t0 = time.perf_counter()
-    print(f"  ├─ [8/10] response_generator", flush=True)
     logger.info(f"[response_generator] generating answer")
 
     try:
@@ -461,7 +582,7 @@ def memory_write_node(state: GraphState) -> GraphState:
     Also emits the full trace event list to the tracing dashboard.
     """
     t0 = time.perf_counter()
-    print(f"  ├─ [9/10] memory_write        session={state.session_id[:12]}", flush=True)
+    logger.info(f"[memory_write] session={state.session_id[:12]}")
 
     try:
         from ..memory.store import save_interaction
@@ -471,6 +592,7 @@ def memory_write_node(state: GraphState) -> GraphState:
             sql=state.sql,
             response=state.response,
             trace_events=state.trace_events,
+            db_alias=state.db_alias,
             dialect=state.dialect,
             connection_meta=state.connection_meta,
             interface=state.interface,
@@ -500,7 +622,7 @@ def rlhf_feedback_node(state: GraphState) -> GraphState:
     """
     t0 = time.perf_counter()
     if state.rlhf_signal:
-        print(f"  ├─ [10/10] rlhf_feedback     signal={state.rlhf_signal}", flush=True)
+        logger.info(f"[rlhf_feedback] signal={state.rlhf_signal}")
 
     if state.rlhf_signal is None:
         state.record_trace("rlhf_feedback", "skip", _ms(t0), detail="no signal yet")
@@ -514,6 +636,7 @@ def rlhf_feedback_node(state: GraphState) -> GraphState:
             sql=state.sql,
             signal=state.rlhf_signal,
             approved=state.approved,
+            db_alias=state.db_alias,
             dialect=state.dialect,
             interface=state.interface,
         )
@@ -551,14 +674,9 @@ def error_boundary_node(state: GraphState) -> GraphState:
         state.error_type = "MaxRetriesExceeded" if state.retry_count >= 3 else "Unknown"
         state.error_node = state.error_node or "query_verifier"
 
-    print(f"  ✖  error_boundary             node={state.error_node}  type={state.error_type}", flush=True)
-    print(f"     error: {str(state.error)[:120]}", flush=True)
     logger.error(
-        f"[error_boundary] "
-        f"node={state.error_node}  "
-        f"type={state.error_type}  "
-        f"error={state.error}  "
-        f"session={state.session_id}"
+        f"[error_boundary] node={state.error_node}  "
+        f"type={state.error_type}  error={str(state.error)[:120]}"
     )
 
     # Set a safe user-facing response
@@ -579,6 +697,7 @@ def error_boundary_node(state: GraphState) -> GraphState:
             question=state.original_question or state.question,
             sql=state.sql,
             trace_events=state.trace_events,
+            db_alias=state.db_alias,
             dialect=state.dialect,
             connection_meta=state.connection_meta,
             interface=state.interface,
@@ -598,11 +717,8 @@ def error_boundary_node(state: GraphState) -> GraphState:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def pending_end_node(state: GraphState) -> GraphState:
-    import time
-    from .utils import _ms
-
     t0 = time.perf_counter()
-    print(f"  ⏳ pending_end   awaiting approval  session={state.session_id[:12]}", flush=True)
+    logger.info(f"[pending_end] awaiting approval  session={state.session_id[:12]}")
     state.response = (
         f"⏳ Approval required for this operation.\n"
         f"SQL: {state.sql}\n\n"
@@ -622,18 +738,22 @@ def _build_sql_prompt(
     schema_ctx: str,
     error_feedback: str,
     mode: str,
+    dialect: str = "",
 ) -> str:
     mode_note = (
         "You are in USER mode. Generate SELECT queries only."
         if mode == "user"
         else "You are in ADMIN mode. You may generate any valid SQL including DDL."
     )
+    dialect_note = DIALECT_NOTES.get(dialect, "")
     retry_note = ""
     if error_feedback:
         retry_note = f"\n\nPrevious attempt failed with this error — fix it:\n{error_feedback}"
 
-    return f"""You are a SQL expert. Given a database schema and a natural language question,
+    return f"""You are a {dialect or 'SQL'} expert. Given a database schema and a natural language question,
 generate a single valid SQL query that answers the question.
+
+{dialect_note}
 
 {mode_note}
 
@@ -678,6 +798,55 @@ DATA:
 {chunks_text}
 
 Answer in plain English. If the data doesn't fully answer the question, say so."""
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Schema selector (PROD-04)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _select_relevant_schema(
+    question: str,
+    full_schema_ctx: str,
+    vector_store,
+    dialect: str,
+) -> str:
+    """
+    Filter the full schema context to only tables semantically relevant
+    to the natural-language question using the pre-built FAISS vector store.
+
+    Falls back to the full schema_ctx if any step fails, so this is always
+    safe to call — it never causes schema context to be empty.
+
+    Retrieves up to 10 most relevant table chunks and joins them back into
+    a compact schema_ctx string for the LLM prompt.
+    """
+    if vector_store is None or not full_schema_ctx:
+        return full_schema_ctx
+
+    try:
+        docs_with_scores = vector_store.similarity_search_with_score(
+            question, k=min(10, len(full_schema_ctx))
+        )
+
+        if not docs_with_scores:
+            return full_schema_ctx
+
+        docs_with_scores.sort(key=lambda x: x[1])
+        chunks = [doc.page_content for doc, _ in docs_with_scores]
+
+        table_count = len(chunks)
+        filtered_ctx = "\n\n".join(chunks)
+        logger.info(
+            f"[schema_selector] pruned schema  "
+            f"selected_tables={table_count}  "
+            f"ctx_chars={len(filtered_ctx)}  "
+            f"(was {len(full_schema_ctx)} chars)"
+        )
+        return filtered_ctx
+
+    except Exception as exc:
+        logger.warning(f"[schema_selector] filtering failed, using full schema: {exc}")
+        return full_schema_ctx
 
 
 # ─────────────────────────────────────────────────────────────────────────────

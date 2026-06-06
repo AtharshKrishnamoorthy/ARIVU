@@ -34,6 +34,7 @@ from typing import Optional
 
 from .base import BaseIntegration
 from ..connection.core import Arivu
+from ..pipeline.runner import run_pipeline, PipelineConfig
 
 # Pydantic models and FastAPI imports at module level so that
 # Pydantic can fully resolve all type hints at schema-generation
@@ -47,6 +48,8 @@ try:
         question: str
         user_id: str = "rest_user"
         rlhf_signal: Optional[str] = None
+        max_query_chars: Optional[int] = None
+        max_result_rows: Optional[int] = None
 
     class QueryResponse(BaseModel):
         response: str
@@ -55,6 +58,9 @@ try:
         pending_approval: bool
         session_id: str
         error: Optional[str] = None
+        results_truncated: bool = False
+        limit_max_query_chars: Optional[int] = None
+        limit_max_result_rows: Optional[int] = None
 
     class FeedbackRequest(BaseModel):
         signal: str   # "positive" | "negative"
@@ -72,10 +78,23 @@ class RESTIntegration(BaseIntegration):
     FastAPI adapter. Useful for web apps, CLI tools, and custom bots.
     """
 
-    def __init__(self, db: Arivu, api_key: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        db: Arivu,
+        api_key: Optional[str] = None,
+        *,
+        max_query_chars: int = 10_000,
+        max_result_rows: int = 10_000,
+        max_retries: int = 3,
+    ) -> None:
         super().__init__(db)
         self.api_key = api_key or os.environ.get("ARIVU_API_KEY")
         self._responses: dict[str, str] = {}   # session_id → queued response
+        self.config = PipelineConfig(
+            max_query_chars=max_query_chars,
+            max_result_rows=max_result_rows,
+            max_retries=max_retries,
+        )
 
     def start(self, host: str = "0.0.0.0", port: int = 8000) -> None:
         import uvicorn
@@ -126,9 +145,14 @@ class RESTIntegration(BaseIntegration):
 
         @app.post("/query", response_model=QueryResponse, dependencies=[Depends(verify_api_key)])
         def query(req: QueryRequest):
-            result = integration.handle_query(
-                req.user_id, req.question, rlhf_signal=req.rlhf_signal
+            cfg = PipelineConfig(
+                max_query_chars=req.max_query_chars or integration.config.max_query_chars,
+                max_result_rows=req.max_result_rows or integration.config.max_result_rows,
+                max_retries=integration.config.max_retries,
             )
+            pipeline_input = integration.db.query(req.question)
+            pipeline_input["session_id"] = integration._session_for(req.user_id)
+            result = run_pipeline(pipeline_input, rlhf_signal=req.rlhf_signal, config=cfg)
             return QueryResponse(
                 response=result.response,
                 sql=result.sql,
@@ -136,6 +160,9 @@ class RESTIntegration(BaseIntegration):
                 pending_approval=result.pending_approval,
                 session_id=result.session_id,
                 error=result.error,
+                results_truncated=result.results_truncated,
+                limit_max_query_chars=cfg.max_query_chars,
+                limit_max_result_rows=cfg.max_result_rows,
             )
 
         @app.post("/approve/{session_id}", dependencies=[Depends(verify_api_key)])
@@ -175,6 +202,14 @@ class RESTIntegration(BaseIntegration):
                 "integration": "rest",
                 "schema_age_seconds": integration.db.schema_age_seconds,
                 "mode": integration.db.mode,
+            }
+
+        @app.get("/config", dependencies=[Depends(verify_api_key)])
+        def get_config():
+            return {
+                "max_query_chars": integration.config.max_query_chars,
+                "max_result_rows": integration.config.max_result_rows,
+                "max_retries": integration.config.max_retries,
             }
 
         return app

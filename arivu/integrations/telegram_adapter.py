@@ -5,7 +5,8 @@ Telegram bot integration for arivu.
 
 Features:
   - NL queries via text messages
-  - /start, /help, /refresh, /approve, /reject commands
+  - /start, /help, /ref
+  resh, /approve, /reject commands
   - Inline thumbs up/down buttons for RLHF feedback
   - Admin approval gate with inline approve/reject buttons
   - Voice message support (speech → text via SpeechRecognition)
@@ -58,6 +59,16 @@ class TelegramIntegration(BaseIntegration):
         self.token = token or os.environ["TELEGRAM_BOT_TOKEN"]
         self.admin_user_ids = set(admin_user_ids or [])
         self._app = None
+        self._bot = None
+
+    @property
+    def bot(self):
+        if self._app:
+            return self._app.bot
+        if not self._bot:
+            from telegram import Bot
+            self._bot = Bot(token=self.token)
+        return self._bot
 
     # ─────────────────────────────────────────
     # Lifecycle
@@ -66,43 +77,77 @@ class TelegramIntegration(BaseIntegration):
     def start(self) -> None:
         """Build and start the Telegram Application (blocking)."""
         self._app = self._build_app()
-        print(f"\n🤖  Telegram bot starting... (token={self.token[:10]}...)", flush=True)
-        logger.info("Telegram bot starting...")
+        logger.info(f"Telegram bot starting...")
         self._app.run_polling(drop_pending_updates=True)
 
     def stop(self) -> None:
         if self._app:
             self._app.stop()
-            print("🛑  Telegram bot stopped.", flush=True)
             logger.info("Telegram bot stopped.")
 
     # ─────────────────────────────────────────
     # Send helpers
     # ─────────────────────────────────────────
 
+    async def _send_message_async(self, chat_id: int, text: str, reply_markup=None) -> None:
+        try:
+            await self.bot.send_message(
+                chat_id=chat_id,
+                text=text,
+                parse_mode="Markdown",
+                reply_markup=reply_markup,
+            )
+        except Exception as e:
+            if "Can't parse entities" in str(e) or "parse" in str(e).lower():
+                logger.warning(f"[telegram] markdown parse failed, falling back to plain text: {e}")
+                await self.bot.send_message(
+                    chat_id=chat_id,
+                    text=text,
+                    reply_markup=reply_markup,
+                )
+            else:
+                raise e
+
+    async def _reply_text_safe(self, update, text: str, reply_markup=None) -> None:
+        if update.message:
+            try:
+                await update.message.reply_text(
+                    text,
+                    parse_mode="Markdown",
+                    reply_markup=reply_markup,
+                )
+            except Exception as e:
+                if "Can't parse entities" in str(e) or "parse" in str(e).lower():
+                    logger.warning(f"[telegram] reply markdown parse failed, falling back to plain text: {e}")
+                    await update.message.reply_text(
+                        text,
+                        reply_markup=reply_markup,
+                    )
+                else:
+                    raise e
+        else:
+            chat_id = update.effective_chat.id
+            await self._send_message_async(chat_id=chat_id, text=text, reply_markup=reply_markup)
+
     def send_message(self, user_id: str, text: str) -> None:
         """
-        Synchronous send — used by BaseIntegration.handle_query().
+        Synchronous send — used by BaseIntegration.handle_query() and
+        handle_approve/handle_reject.
 
-        Safely dispatches into the running Telegram event loop using
-        run_coroutine_threadsafe so it never raises
-        "This event loop is already running".
+        Uses fire-and-forget dispatch when inside a running event loop
+        (avoids deadlocks in voice/photo/callback handlers), otherwise
+        runs directly for non-async contexts.
         """
         import asyncio
-        coro = self._app.bot.send_message(
-            chat_id=int(user_id),
-            text=text,
-            parse_mode="Markdown",
-        )
+        coro = self._send_message_async(chat_id=int(user_id), text=text)
         try:
             loop = asyncio.get_running_loop()
-            # We are inside an already-running event loop (e.g. a telegram handler).
-            # Schedule the coroutine from a worker thread instead.
-            import concurrent.futures
-            future = asyncio.run_coroutine_threadsafe(coro, loop)
-            future.result(timeout=30)
+            future = asyncio.ensure_future(coro, loop=loop)
+            future.add_done_callback(
+                lambda f: logger.error(f"[telegram] send_message failed: {f.exception()}")
+                if f.exception() else None
+            )
         except RuntimeError:
-            # No running loop — safe to use run_until_complete.
             asyncio.run(coro)
 
     def send_approval_request(
@@ -114,7 +159,6 @@ class TelegramIntegration(BaseIntegration):
     ) -> None:
         """Send destructive SQL to admin with inline approve/reject buttons."""
         from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-        import asyncio
 
         keyboard = InlineKeyboardMarkup([
             [
@@ -130,19 +174,12 @@ class TelegramIntegration(BaseIntegration):
         ])
         text = self.format_approval_message(sql, question)
 
-        # Notify all admin users
-        import concurrent.futures
+        import asyncio
         for admin_id in self.admin_user_ids:
-            coro = self._app.bot.send_message(
-                chat_id=admin_id,
-                text=text,
-                parse_mode="Markdown",
-                reply_markup=keyboard,
-            )
+            coro = self._send_message_async(chat_id=admin_id, text=text, reply_markup=keyboard)
             try:
                 loop = asyncio.get_running_loop()
-                future = asyncio.run_coroutine_threadsafe(coro, loop)
-                future.result(timeout=30)
+                asyncio.ensure_future(coro, loop=loop)
             except RuntimeError:
                 asyncio.run(coro)
 
@@ -263,7 +300,7 @@ class TelegramIntegration(BaseIntegration):
     async def _handle_text(self, update, context) -> None:
         user_id = str(update.effective_user.id)
         text = update.message.text.strip()
-        print(f"\n📨  Telegram message  user={user_id}  text='{text[:70]}'", flush=True)
+        logger.info(f"telegram text  user={user_id}  text='{text[:70]}'")
         logger.info(f"[telegram] text message  user={user_id}  text='{text[:70]}'")
 
         await update.message.reply_text("⏳ Thinking...")
@@ -285,10 +322,9 @@ class TelegramIntegration(BaseIntegration):
             approval_text = self.format_approval_message(result.sql, text)
             for admin_id in self.admin_user_ids:
                 try:
-                    await self._app.bot.send_message(
+                    await self._send_message_async(
                         chat_id=admin_id,
                         text=approval_text,
-                        parse_mode="Markdown",
                         reply_markup=keyboard,
                     )
                 except Exception as exc:
@@ -304,9 +340,9 @@ class TelegramIntegration(BaseIntegration):
                 InlineKeyboardButton("👍", callback_data=f"rlhf:positive:{result.session_id}"),
                 InlineKeyboardButton("👎", callback_data=f"rlhf:negative:{result.session_id}"),
             ]])
-            await update.message.reply_text(
+            await self._reply_text_safe(
+                update,
                 result.response,
-                parse_mode="Markdown",
                 reply_markup=keyboard,
             )
 
@@ -318,7 +354,6 @@ class TelegramIntegration(BaseIntegration):
     async def _handle_voice(self, update, context) -> None:
         """Transcribe voice message and route as text query."""
         user_id = str(update.effective_user.id)
-        print(f"\n🎤  Telegram voice message  user={user_id}", flush=True)
         logger.info(f"[telegram] voice message  user={user_id}")
         await update.message.reply_text("🎤 Transcribing voice message...")
 
@@ -330,8 +365,39 @@ class TelegramIntegration(BaseIntegration):
                 )
                 return
             await update.message.reply_text(f"📝 Heard: _{text}_", parse_mode="Markdown")
-            result = self.handle_query(user_id, text)
-            if not result.success:
+
+            import asyncio
+            loop = asyncio.get_running_loop()
+            result = await loop.run_in_executor(None, self._run_pipeline_only, user_id, text)
+
+            if result.pending_approval:
+                from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+                keyboard = InlineKeyboardMarkup([[
+                    InlineKeyboardButton("✅ Approve", callback_data=f"approve:{result.session_id}"),
+                    InlineKeyboardButton("❌ Reject",  callback_data=f"reject:{result.session_id}"),
+                ]])
+                approval_text = self.format_approval_message(result.sql, text)
+                for admin_id in self.admin_user_ids:
+                    try:
+                        await self._send_message_async(
+                            chat_id=admin_id, text=approval_text,
+                            reply_markup=keyboard,
+                        )
+                    except Exception as exc:
+                        logger.warning(f"[telegram] failed to notify admin {admin_id}: {exc}")
+                await update.message.reply_text(
+                    "⏳ This query requires admin approval before it can run."
+                )
+            elif result.success:
+                from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+                keyboard = InlineKeyboardMarkup([[
+                    InlineKeyboardButton("👍", callback_data=f"rlhf:positive:{result.session_id}"),
+                    InlineKeyboardButton("👎", callback_data=f"rlhf:negative:{result.session_id}"),
+                ]])
+                await self._reply_text_safe(
+                    update, result.response, reply_markup=keyboard
+                )
+            else:
                 await update.message.reply_text(
                     self.format_error_message(result.error, result.session_id)
                 )
@@ -342,7 +408,6 @@ class TelegramIntegration(BaseIntegration):
     async def _handle_photo(self, update, context) -> None:
         """OCR image and route extracted text as query."""
         user_id = str(update.effective_user.id)
-        print(f"\n🖼️  Telegram photo message  user={user_id}", flush=True)
         logger.info(f"[telegram] photo message  user={user_id}")
         await update.message.reply_text("🖼️ Reading image...")
 
@@ -356,8 +421,39 @@ class TelegramIntegration(BaseIntegration):
             await update.message.reply_text(
                 f"📝 Extracted: _{text[:200]}_", parse_mode="Markdown"
             )
-            result = self.handle_query(user_id, text)
-            if not result.success:
+
+            import asyncio
+            loop = asyncio.get_running_loop()
+            result = await loop.run_in_executor(None, self._run_pipeline_only, user_id, text)
+
+            if result.pending_approval:
+                from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+                keyboard = InlineKeyboardMarkup([[
+                    InlineKeyboardButton("✅ Approve", callback_data=f"approve:{result.session_id}"),
+                    InlineKeyboardButton("❌ Reject",  callback_data=f"reject:{result.session_id}"),
+                ]])
+                approval_text = self.format_approval_message(result.sql, text)
+                for admin_id in self.admin_user_ids:
+                    try:
+                        await self._send_message_async(
+                            chat_id=admin_id, text=approval_text,
+                            reply_markup=keyboard,
+                        )
+                    except Exception as exc:
+                        logger.warning(f"[telegram] failed to notify admin {admin_id}: {exc}")
+                await update.message.reply_text(
+                    "⏳ This query requires admin approval before it can run."
+                )
+            elif result.success:
+                from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+                keyboard = InlineKeyboardMarkup([[
+                    InlineKeyboardButton("👍", callback_data=f"rlhf:positive:{result.session_id}"),
+                    InlineKeyboardButton("👎", callback_data=f"rlhf:negative:{result.session_id}"),
+                ]])
+                await self._reply_text_safe(
+                    update, result.response, reply_markup=keyboard
+                )
+            else:
                 await update.message.reply_text(
                     self.format_error_message(result.error, result.session_id)
                 )
@@ -399,7 +495,6 @@ class TelegramIntegration(BaseIntegration):
 
         _, signal, session_id = query.data.split(":", 2)
 
-        print(f"\n👍👎  RLHF Feedback  user={query.from_user.id}  signal={signal}", flush=True)
         logger.info(f"[telegram] rlhf {signal} for session {session_id}")
 
         save_rlhf_signal(

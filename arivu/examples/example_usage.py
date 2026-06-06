@@ -14,11 +14,11 @@ from arivu.connection.exceptions import AuthError
 # ─────────────────────────────────────────
 
 # db = Arivu.connect(
-#     host="aws-1-ap-northeast-1.pooler.supabase.com",
-#     port=6543,
-#     user="postgres.uwixxlhixoshkihcosta",
-#     password="dermacare2026",
-#     dbname="postgres",
+#     host="YOUR_DB_HOST",
+#     port=5432,
+#     user="YOUR_DB_USER",
+#     password="YOUR_DB_PASSWORD",
+#     dbname="your_db_name",
 #     mode="user",
 #     ttl=3600,           
 #     dialect="postgresql",

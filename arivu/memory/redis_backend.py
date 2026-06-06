@@ -7,6 +7,7 @@ For production / multi-instance deployments where multiple ARIVU
 processes share the same memory store.
 
 Key layout (all keys prefixed with "dh:"):
+    dh:databases                         — JSON: {alias: {dialect, display_name, created_at}}
     dh:session:{session_id}:history      — List of interaction JSON blobs
     dh:session:{session_id}:traces       — List of trace event JSON blobs
     dh:approval:{session_id}             — Hash: pending approval record
@@ -52,28 +53,53 @@ class RedisMemoryBackend(BaseMemoryBackend):
                 f"Could not connect to Redis at {redis_url}: {exc}"
             ) from exc
 
+        self._migrate_connections_registry()
+
     # ─────────────────────────────────────────
     # Key helpers
     # ─────────────────────────────────────────
 
     @staticmethod
-    def _hkey(session_id: str) -> str:
-        return f"{KEY_PREFIX}session:{session_id}:history"
+    def _hkey(session_id: str, db_alias: str = "") -> str:
+        prefix = f"{KEY_PREFIX}db:{db_alias}:" if db_alias else KEY_PREFIX
+        return f"{prefix}session:{session_id}:history"
 
     @staticmethod
-    def _tkey(session_id: str) -> str:
-        return f"{KEY_PREFIX}session:{session_id}:traces"
+    def _tkey(session_id: str, db_alias: str = "") -> str:
+        prefix = f"{KEY_PREFIX}db:{db_alias}:" if db_alias else KEY_PREFIX
+        return f"{prefix}session:{session_id}:traces"
 
     @staticmethod
-    def _akey(session_id: str) -> str:
-        return f"{KEY_PREFIX}approval:{session_id}"
+    def _akey(session_id: str, db_alias: str = "") -> str:
+        prefix = f"{KEY_PREFIX}db:{db_alias}:" if db_alias else KEY_PREFIX
+        return f"{prefix}approval:{session_id}"
+
+    @staticmethod
+    def _sessions_key(db_alias: str = "") -> str:
+        prefix = f"{KEY_PREFIX}db:{db_alias}:" if db_alias else KEY_PREFIX
+        return f"{prefix}sessions"
+
+    @staticmethod
+    def _rlhf_key(db_alias: str = "") -> str:
+        prefix = f"{KEY_PREFIX}db:{db_alias}:" if db_alias else KEY_PREFIX
+        return f"{prefix}rlhf"
+
+    @staticmethod
+    def _errors_key(db_alias: str = "") -> str:
+        prefix = f"{KEY_PREFIX}db:{db_alias}:" if db_alias else KEY_PREFIX
+        return f"{prefix}errors"
+
+    @staticmethod
+    def _saved_queries_key(db_alias: str = "") -> str:
+        prefix = f"{KEY_PREFIX}db:{db_alias}:" if db_alias else KEY_PREFIX
+        return f"{prefix}saved_queries"
 
     # ─────────────────────────────────────────
     # Session history
     # ─────────────────────────────────────────
 
-    def load_session_history(self, session_id: str, limit: int = 3) -> list[dict]:
-        key = self._hkey(session_id)
+    def load_session_history(self, session_id: str, limit: int = 3, db_alias: str = "") -> list[dict]:
+        key = self._hkey(session_id, db_alias)
         raw = self._r.lrange(key, -limit, -1)
         return [json.loads(r) for r in raw]
 
@@ -84,6 +110,9 @@ class RedisMemoryBackend(BaseMemoryBackend):
         sql: str,
         response: str,
         trace_events: list[dict],
+        db_alias: str = "",
+        dialect: str = "",
+        interface: str = "dashboard",
     ) -> None:
         ts = time.time()
         entry = json.dumps({
@@ -94,13 +123,11 @@ class RedisMemoryBackend(BaseMemoryBackend):
         })
         pipe = self._r.pipeline()
 
-        # History list
-        hkey = self._hkey(session_id)
+        hkey = self._hkey(session_id, db_alias)
         pipe.rpush(hkey, entry)
         pipe.expire(hkey, SESSION_TTL)
 
-        # Trace list
-        tkey = self._tkey(session_id)
+        tkey = self._tkey(session_id, db_alias)
         trace_blob = json.dumps({
             "session_id": session_id,
             "question": question,
@@ -111,8 +138,7 @@ class RedisMemoryBackend(BaseMemoryBackend):
         pipe.rpush(tkey, trace_blob)
         pipe.expire(tkey, SESSION_TTL)
 
-        # Session index (sorted set for dashboard session list)
-        pipe.zadd(f"{KEY_PREFIX}sessions", {session_id: ts})
+        pipe.zadd(self._sessions_key(db_alias), {session_id: ts})
 
         pipe.execute()
 
@@ -125,8 +151,9 @@ class RedisMemoryBackend(BaseMemoryBackend):
         session_id: str,
         sql: str,
         question: str,
+        db_alias: str = "",
     ) -> None:
-        key = self._akey(session_id)
+        key = self._akey(session_id, db_alias)
         self._r.hset(key, mapping={
             "session_id": session_id,
             "sql": sql,
@@ -137,8 +164,8 @@ class RedisMemoryBackend(BaseMemoryBackend):
         })
         self._r.expire(key, SESSION_TTL)
 
-    def get_pending_approval(self, session_id: str) -> Optional[dict]:
-        key = self._akey(session_id)
+    def get_pending_approval(self, session_id: str, db_alias: str = "") -> Optional[dict]:
+        key = self._akey(session_id, db_alias)
         data = self._r.hgetall(key)
         if not data or data.get("resolved") == "1":
             return None
@@ -154,12 +181,34 @@ class RedisMemoryBackend(BaseMemoryBackend):
             "ts": float(data["ts"]),
         }
 
-    def resolve_approval(self, session_id: str, approved: bool) -> None:
-        key = self._akey(session_id)
+    def resolve_approval(self, session_id: str, approved: bool, db_alias: str = "") -> None:
+        key = self._akey(session_id, db_alias)
         self._r.hset(key, mapping={
             "resolved": "1",
             "approved": "1" if approved else "0",
         })
+
+    def get_all_pending_approvals(self, db_alias: str = "") -> list[dict]:
+        result = []
+        pattern = f"arivu:approval:{db_alias}:*" if db_alias else "arivu:approval:*"
+        for key in self._r.scan_iter(match=pattern, count=100):
+            data = self._r.hgetall(key)
+            if not data or data.get("resolved") == "1":
+                continue
+            result.append({
+                "session_id": data.get("session_id", ""),
+                "sql": data.get("sql", ""),
+                "question": data.get("question", ""),
+                "db_alias": data.get("db_alias", ""),
+                "resolved": False,
+                "approved": (
+                    None if data.get("approved", "") == ""
+                    else data["approved"] == "1"
+                ),
+                "ts": float(data.get("ts", 0)),
+            })
+        result.sort(key=lambda x: x["ts"], reverse=True)
+        return result
 
     # ─────────────────────────────────────────
     # RLHF
@@ -172,6 +221,9 @@ class RedisMemoryBackend(BaseMemoryBackend):
         sql: str,
         signal: str,
         approved: Optional[bool],
+        db_alias: str = "",
+        dialect: str = "",
+        interface: str = "dashboard",
     ) -> None:
         ts = time.time()
         blob = json.dumps({
@@ -180,16 +232,19 @@ class RedisMemoryBackend(BaseMemoryBackend):
             "sql": sql,
             "signal": signal,
             "approved": approved,
+            "dialect": dialect,
+            "interface": interface,
             "ts": ts,
         })
-        self._r.zadd(f"{KEY_PREFIX}rlhf", {blob: ts})
+        self._r.zadd(self._rlhf_key(db_alias), {blob: ts})
 
     def get_rlhf_log(
         self,
         limit: int = 100,
         signal_filter: Optional[str] = None,
+        db_alias: str = "",
     ) -> list[dict]:
-        raw = self._r.zrevrange(f"{KEY_PREFIX}rlhf", 0, limit * 3 - 1)
+        raw = self._r.zrevrange(self._rlhf_key(db_alias), 0, limit * 3 - 1)
         entries = [json.loads(r) for r in raw]
         if signal_filter:
             entries = [e for e in entries if e.get("signal") == signal_filter]
@@ -208,8 +263,10 @@ class RedisMemoryBackend(BaseMemoryBackend):
         question: str,
         sql: str,
         trace_events: list[dict],
+        db_alias: str = "",
         dialect: str = "",
         connection_meta: dict = None,
+        interface: str = "dashboard",
     ) -> None:
         ts = time.time()
         blob = json.dumps({
@@ -220,19 +277,20 @@ class RedisMemoryBackend(BaseMemoryBackend):
             "question": question,
             "sql": sql,
             "trace_events": trace_events,
+            "db_alias": db_alias,
             "dialect": dialect,
             "connection_meta": connection_meta or {},
+            "interface": interface,
             "ts": ts,
         })
-        self._r.zadd(f"{KEY_PREFIX}errors", {blob: ts})
+        self._r.zadd(self._errors_key(db_alias), {blob: ts})
 
-    def get_error_log(self, limit: int = 100) -> list[dict]:
-        raw = self._r.zrevrange(f"{KEY_PREFIX}errors", 0, limit - 1)
+    def get_error_log(self, limit: int = 100, db_alias: str = "") -> list[dict]:
+        raw = self._r.zrevrange(self._errors_key(db_alias), 0, limit - 1)
         result = []
         for r in raw:
             d = json.loads(r)
             d.pop("trace_events", None)
-            # Ensure dialect + connection_meta are present
             d.setdefault("dialect", "")
             d.setdefault("connection_meta", {})
             result.append(d)
@@ -246,31 +304,30 @@ class RedisMemoryBackend(BaseMemoryBackend):
         self,
         session_id: Optional[str] = None,
         limit: int = 50,
+        db_alias: str = "",
     ) -> list[dict]:
         if session_id:
-            key = self._tkey(session_id)
+            key = self._tkey(session_id, db_alias)
             raw = self._r.lrange(key, -limit, -1)
             return [json.loads(r) for r in reversed(raw)]
         else:
-            # All sessions — grab top sessions then their latest trace each
-            session_ids = self._r.zrevrange(f"{KEY_PREFIX}sessions", 0, limit - 1)
+            session_ids = self._r.zrevrange(self._sessions_key(db_alias), 0, limit - 1)
             result = []
             for sid in session_ids:
-                tkey = self._tkey(sid)
+                tkey = self._tkey(sid, db_alias)
                 latest = self._r.lindex(tkey, -1)
                 if latest:
                     result.append(json.loads(latest))
             return result
 
-    def get_session_list(self, limit: int = 50) -> list[dict]:
+    def get_session_list(self, limit: int = 50, db_alias: str = "") -> list[dict]:
         session_ids = self._r.zrevrange(
-            f"{KEY_PREFIX}sessions", 0, limit - 1, withscores=True
+            self._sessions_key(db_alias), 0, limit - 1, withscores=True
         )
         result = []
         for session_id, last_ts in session_ids:
-            hkey = self._hkey(session_id)
+            hkey = self._hkey(session_id, db_alias)
             query_count = self._r.llen(hkey)
-            # Get last question from last history entry
             last_entry_raw = self._r.lindex(hkey, -1)
             last_question = ""
             if last_entry_raw:
@@ -280,32 +337,28 @@ class RedisMemoryBackend(BaseMemoryBackend):
                 "query_count": query_count,
                 "last_question": last_question,
                 "last_ts": last_ts,
-                "error_count": 0,   # Redis: error count per session not pre-aggregated
+                "error_count": 0,
             })
         return result
 
-    def get_dashboard_stats(self) -> dict:
-        total_sessions = self._r.zcard(f"{KEY_PREFIX}sessions") or 0
-        total_errors = self._r.zcard(f"{KEY_PREFIX}errors") or 0
-        
-        # RLHF stats
-        rlhf_entries = self.get_rlhf_log(limit=1000, signal_filter=None)
+    def get_dashboard_stats(self, db_alias: str = "") -> dict:
+        total_sessions = self._r.zcard(self._sessions_key(db_alias)) or 0
+        total_errors = self._r.zcard(self._errors_key(db_alias)) or 0
+
+        rlhf_entries = self.get_rlhf_log(limit=1000, signal_filter=None, db_alias=db_alias)
         positive_rlhf = sum(1 for r in rlhf_entries if r.get("signal") == "positive")
         negative_rlhf = sum(1 for r in rlhf_entries if r.get("signal") == "negative")
-        
-        # Calculate queries - this is expensive in Redis to fully sum without a counter 
-        # but for simplicity we iterate over top 100 sessions
-        session_ids = self._r.zrevrange(f"{KEY_PREFIX}sessions", 0, 99)
+
+        session_ids = self._r.zrevrange(self._sessions_key(db_alias), 0, 99)
         total_queries = 0
         for sid in session_ids:
-            total_queries += self._r.llen(self._hkey(sid))
+            total_queries += self._r.llen(self._hkey(sid, db_alias))
 
-        # Node avg latency (similar to sqlite approach, get recent traces)
-        traces = self.get_pipeline_traces(session_id=None, limit=200)
+        traces = self.get_pipeline_traces(session_id=None, limit=200, db_alias=db_alias)
         latencies = []
         from collections import defaultdict
         node_latencies = defaultdict(list)
-        
+
         for trace in traces:
             total_ms = 0
             for ev in trace.get("events", []):
@@ -315,7 +368,7 @@ class RedisMemoryBackend(BaseMemoryBackend):
                     node_latencies[ev.get("node", "unknown")].append(lat)
             if total_ms > 0:
                 latencies.append(total_ms)
-                
+
         avg_latency = (sum(latencies) / len(latencies)) if latencies else 0.0
         node_avg = {node: round(sum(vals) / len(vals), 1) for node, vals in node_latencies.items() if vals}
 
@@ -351,4 +404,126 @@ class RedisMemoryBackend(BaseMemoryBackend):
             val = self._r.get(k)
             if val:
                 result[relative_key] = json.loads(val)
-        return result
+        return result
+
+    # ─────────────────────────────────────────
+    # Saved Queries
+    # ─────────────────────────────────────────
+
+    def save_saved_query(
+        self,
+        query_id: str,
+        session_id: str,
+        query: str,
+        sql: str,
+        notes: str = "",
+        db_alias: str = "",
+    ) -> None:
+        ts = time.time()
+        blob = json.dumps({
+            "id": query_id,
+            "session_id": session_id,
+            "query": query,
+            "sql": sql,
+            "notes": notes,
+            "db_alias": db_alias,
+            "created_at": ts,
+            "updated_at": ts,
+        })
+        pipe = self._r.pipeline()
+        pipe.zadd(self._saved_queries_key(db_alias), {blob: ts})
+        pipe.zadd(f"{self._saved_queries_key(db_alias)}:session:{session_id}", {blob: ts})
+        pipe.expire(f"{self._saved_queries_key(db_alias)}:session:{session_id}", SESSION_TTL * 30)
+        pipe.execute()
+
+    def get_saved_query(self, query_id: str, db_alias: str = "") -> Optional[dict]:
+        raw = self._r.zrevrange(self._saved_queries_key(db_alias), 0, -1)
+        for r in raw:
+            entry = json.loads(r)
+            if entry.get("id") == query_id:
+                return entry
+        return None
+
+    def list_saved_queries(self, limit: int = 50, offset: int = 0, db_alias: str = "") -> list[dict]:
+        raw = self._r.zrevrange(
+            self._saved_queries_key(db_alias),
+            offset,
+            offset + limit - 1
+        )
+        return [json.loads(r) for r in raw]
+
+    def list_session_saved_queries(self, session_id: str, limit: int = 50, db_alias: str = "") -> list[dict]:
+        raw = self._r.zrevrange(
+            f"{self._saved_queries_key(db_alias)}:session:{session_id}",
+            0,
+            limit - 1
+        )
+        return [json.loads(r) for r in raw]
+
+    def update_saved_query(self, query_id: str, notes: str, db_alias: str = "") -> None:
+        raw = self._r.zrevrange(self._saved_queries_key(db_alias), 0, -1)
+        for r in raw:
+            entry = json.loads(r)
+            if entry.get("id") == query_id:
+                entry["notes"] = notes
+                entry["updated_at"] = time.time()
+                ts = entry["updated_at"]
+                blob = json.dumps(entry)
+                session_id = entry.get("session_id", "")
+                self._r.zrem(self._saved_queries_key(db_alias), r)
+                self._r.zadd(self._saved_queries_key(db_alias), {blob: ts})
+                if session_id:
+                    self._r.zrem(f"{self._saved_queries_key(db_alias)}:session:{session_id}", r)
+                    self._r.zadd(f"{self._saved_queries_key(db_alias)}:session:{session_id}", {blob: ts})
+                break
+
+    def delete_saved_query(self, query_id: str, db_alias: str = "") -> None:
+        raw = self._r.zrevrange(self._saved_queries_key(db_alias), 0, -1)
+        for r in raw:
+            entry = json.loads(r)
+            if entry.get("id") == query_id:
+                session_id = entry.get("session_id", "")
+                pipe = self._r.pipeline()
+                pipe.zrem(self._saved_queries_key(db_alias), r)
+                if session_id:
+                    pipe.zrem(f"{self._saved_queries_key(db_alias)}:session:{session_id}", r)
+                pipe.execute()
+                break
+
+    # ─────────────────────────────────────────
+    # DB-centric migration helpers
+    # ─────────────────────────────────────────
+
+    def _migrate_connections_registry(self):
+        """Copy connections from config KV store into the dh:databases registry."""
+        if self._r.get(f"{KEY_PREFIX}migration:connections_registry"):
+            return
+
+        raw = self._r.get(f"{KEY_PREFIX}config:connections")
+        if not raw:
+            return
+
+        try:
+            connections = json.loads(raw).get("list", [])
+        except (json.JSONDecodeError, KeyError):
+            return
+
+        ts = time.time()
+        registry = {}
+        for c in connections:
+            alias = c.get("alias")
+            if not alias:
+                continue
+            registry[alias] = {
+                "dialect": c.get("dialect", ""),
+                "display_name": c.get("display_name", alias),
+                "created_at": ts,
+            }
+
+        if registry:
+            self._r.set(f"{KEY_PREFIX}databases", json.dumps(registry))
+
+        self._r.set(
+            f"{KEY_PREFIX}migration:connections_registry",
+            json.dumps({"done": True, "ts": ts})
+        )

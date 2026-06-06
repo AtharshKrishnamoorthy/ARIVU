@@ -131,15 +131,14 @@ class BaseIntegration(ABC):
         pipeline_input = self.db.query(text)
         pipeline_input["session_id"] = self._session_for(user_id)
 
-        print(f"\n◀  QUERY  user={user_id}  text='{text[:70]}'", flush=True)
         logger.info(f"[integration] query  user={user_id}  text='{text[:70]}'")
 
         result = run_pipeline(pipeline_input, rlhf_signal=rlhf_signal)
 
         status = "ok" if result.success else f"error({result.error_node})"
-        print(f"▶  RESULT  status={status}  pending_approval={result.pending_approval}", flush=True)
+        logger.info(f"[integration] result  status={status}  pending_approval={result.pending_approval}")
         if result.response:
-            print(f"   response: {result.response[:120]}", flush=True)
+            logger.debug(f"[integration] response: {result.response[:120]}")
 
         return result
 
@@ -148,11 +147,19 @@ class BaseIntegration(ABC):
         if not pending:
             self.send_message(user_id, "No pending approval found for this session.")
             return
-    
+
+        # Re-run sanitizer before executing approved SQL (defense-in-depth)
+        from ..pipeline.sanitizer import sanitize_sql
+        safe, reason = sanitize_sql(pending["sql"])
+        if not safe:
+            resolve_approval(session_id, approved=False)
+            logger.warning(f"[integration] approved SQL rejected by sanitizer: {reason}")
+            self.send_message(user_id, f"❌ SQL rejected on re-check: {reason}")
+            return
+
         resolve_approval(session_id, approved=True)
-        logger.info(f"[integration] approved  session={session_id}  user={user_id}")
-        print(f"✔  APPROVED  session={session_id[:12]}  by user={user_id}", flush=True)
-    
+        logger.info(f"[integration] approved  session={session_id[:12]}  user={user_id}")
+
         # Execute the already-verified SQL directly — no pipeline re-run
         try:
             from sqlalchemy import text
@@ -160,7 +167,7 @@ class BaseIntegration(ABC):
                 result = conn.execute(text(pending["sql"]))
                 conn.commit()
                 affected = result.rowcount if result.rowcount is not None else 0
-    
+
             logger.info(f"[integration] approved SQL executed  rows_affected={affected}")
             self.send_message(
                 user_id,
@@ -168,7 +175,7 @@ class BaseIntegration(ABC):
                 f"SQL: `{pending['sql']}`\n"
                 f"Rows affected: {affected}"
             )
-    
+
         except Exception as exc:
             logger.error(f"[integration] approved SQL execution failed: {exc}")
             self.send_message(
@@ -181,7 +188,7 @@ class BaseIntegration(ABC):
         """Called when an admin sends /reject."""
         resolve_approval(session_id, approved=False)
         logger.info(f"[integration] rejected  session={session_id}  user={user_id}")
-        print(f"✖  REJECTED  session={session_id[:12]}  by user={user_id}", flush=True)
+        logger.info(f"[integration] rejected  session={session_id[:12]}  user={user_id}")
         self.send_message(user_id, "❌ Operation rejected. Nothing was changed.")
 
     # ─────────────────────────────────────────

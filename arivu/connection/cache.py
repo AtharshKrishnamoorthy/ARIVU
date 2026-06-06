@@ -6,10 +6,16 @@ and TTL metadata.  Lives on the Arivu connection object.
 
 SchemaCache.is_stale()  — checked before every db.query()
 SchemaCache.populate()  — called by both initial extraction and refresh
+
+Uses time.monotonic() for TTL calculations (not wall-clock time) so
+clock adjustments or DST transitions cannot trigger false staleness.
+Schema fingerprinting detects structural DDL changes even before TTL expires.
 """
 
 from __future__ import annotations
 
+import hashlib
+import json
 import time
 import logging
 from typing import Any, Optional
@@ -47,11 +53,12 @@ class SchemaCache:
     Holds the embedded schema and its freshness metadata.
 
     Attributes:
-        sql_ctx       — serialised CREATE TABLE string (raw text)
-        vector_store  — FAISS index over chunked schema fragments
-        raw_schema    — list of table dicts from extract_schema()
-        cached_at     — unix timestamp of last successful population
-        ttl           — seconds before the cache is considered stale
+        sql_ctx            — serialised CREATE TABLE string (raw text)
+        vector_store       — FAISS index over chunked schema fragments
+        raw_schema         — list of table dicts from extract_schema()
+        cached_at          — monotonic timestamp of last successful population
+        schema_fingerprint — hash of raw_schema for change detection
+        ttl                — seconds before the cache is considered stale
     """
 
     def __init__(self, ttl: int = 3600) -> None:
@@ -60,6 +67,7 @@ class SchemaCache:
         self.vector_store = None
         self.raw_schema: Optional[list[dict]] = None
         self.cached_at: Optional[float] = None
+        self._schema_fingerprint: Optional[str] = None
 
     # ─────────────────────────────────────────
     # State checks
@@ -73,25 +81,33 @@ class SchemaCache:
         """
         True if the cache has never been populated,
         or if the TTL has elapsed since the last population.
+
+        Uses time.monotonic() — immune to wall-clock adjustments
+        (NTP corrections, DST transitions, manual time changes).
         """
         if not self.is_valid():
             return True
-        return (time.time() - self.cached_at) > self.ttl
+        return (time.monotonic() - self.cached_at) > self.ttl
 
     @property
     def age_seconds(self) -> Optional[float]:
         """Seconds since the cache was last populated, or None if empty."""
         if self.cached_at is None:
             return None
-        return time.time() - self.cached_at
+        return time.monotonic() - self.cached_at
 
     @property
     def expires_in_seconds(self) -> Optional[float]:
         """Seconds until the cache expires, or None if already stale/empty."""
         if not self.is_valid():
             return None
-        remaining = self.ttl - (time.time() - self.cached_at)
+        remaining = self.ttl - (time.monotonic() - self.cached_at)
         return max(0.0, remaining)
+
+    @property
+    def schema_fingerprint(self) -> Optional[str]:
+        """SHA-256 hash of the raw schema dict, or None if never populated."""
+        return self._schema_fingerprint
 
     # ─────────────────────────────────────────
     # Population
@@ -104,7 +120,7 @@ class SchemaCache:
     ) -> None:
         """
         Store the SQL context string, embed it into FAISS, and record
-        the cache timestamp.
+        the cache timestamp + schema fingerprint.
 
         The sql_ctx is split into per-table chunks so that retrieval
         returns only the relevant table fragments rather than the whole
@@ -117,13 +133,27 @@ class SchemaCache:
         chunks = _chunk_schema(sql_ctx)
         self.vector_store = _build_vector_store(chunks)
 
-        self.cached_at = time.time()
+        self.cached_at = time.monotonic()
+        self._schema_fingerprint = _compute_fingerprint(raw_schema)
         logger.info(
             f"Schema cache populated  "
             f"tables={len(raw_schema)}  "
             f"chunks={len(chunks)}  "
-            f"ttl={self.ttl}s"
+            f"ttl={self.ttl}s  "
+            f"fingerprint={self._schema_fingerprint[:12]}"
         )
+
+    def has_schema_changed(self, raw_schema: list[dict[str, Any]]) -> bool:
+        """
+        Compare the incoming raw schema against the cached fingerprint.
+
+        Returns True if the schema structure has changed since last populate
+        — even if the TTL hasn't expired. Use this to detect DDL changes
+        (migrations, table adds/drops) before the next TTL window.
+        """
+        if self._schema_fingerprint is None:
+            return True
+        return _compute_fingerprint(raw_schema) != self._schema_fingerprint
 
     def invalidate(self) -> None:
         """Force the cache to be considered stale without clearing data."""
@@ -136,6 +166,7 @@ class SchemaCache:
         self.vector_store = None
         self.raw_schema = None
         self.cached_at = None
+        self._schema_fingerprint = None
         logger.debug("Schema cache cleared")
 
     def __repr__(self) -> str:
@@ -154,6 +185,17 @@ class SchemaCache:
 # ─────────────────────────────────────────────────────────────────────────────
 # Internal helpers
 # ─────────────────────────────────────────────────────────────────────────────
+
+def _compute_fingerprint(raw_schema: list[dict[str, Any]]) -> str:
+    """
+    Compute a stable SHA-256 hash of the raw schema dict.
+
+    Sorts table names + column names so the hash is deterministic
+    regardless of introspection return order.
+    """
+    payload = json.dumps(raw_schema, sort_keys=True, default=str)
+    return hashlib.sha256(payload.encode()).hexdigest()
+
 
 def _chunk_schema(sql_ctx: str) -> list[str]:
     """

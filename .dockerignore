@@ -1,0 +1,58 @@
+# ── Root .dockerignore for Backend Build Context ──
+
+# Version Control
+.git/
+.github/
+
+# Virtual Environments
+.venv/
+venv/
+env/
+
+# Python Caches & Build Artifacts
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.tox/
+dist/
+build/
+*.egg-info/
+arivu_ai.egg-info/
+
+# Local databases & Secrets
+.arivu_data/
+*.sqlite
+*.db
+.env
+arivu/.env
+
+# Docker configuration files
+docker-compose*.yml
+
+# Unrelated Sub-Projects & Folders
+site/
+test/
+arivu/docs/
+arivu/examples/
+arivu/dashboard/frontend/
+
+# Markdown & Planning Leftovers
+arivu/implementation-plan.md
+strip_license_file.py
+
+# Explicitly block large media files (e.g. 346MB motion-video.mp4 in docs)
+*.mp4
+*.mp3
+*.wav
+*.zip
+*.tar.gz
+arivu/docs/images/
+
+# Temporary and IDE files
+.tmp/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

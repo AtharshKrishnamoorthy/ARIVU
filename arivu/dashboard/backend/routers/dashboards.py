@@ -12,30 +12,35 @@ import time
 import uuid
 
 from fastapi import APIRouter, Body, HTTPException
+from ..dependencies import get_db_alias
 from ....memory.store import _get_backend
 
 logger = logging.getLogger("arivu.dashboard.dashboards")
 
 router = APIRouter(prefix="/api/dashboards")
 
-def _run_sql(query, params=(), fetch=False):
+def _run_sql(query, params=(), fetch=False, db_alias=""):
     backend = _get_backend()
-    # If the backend has a direct _conn context manager (like SQLiteMemoryBackend), use it
     if hasattr(backend, "_conn"):
         with backend._conn() as conn:
             cur = conn.execute(query, params)
             if fetch:
-                return [dict(row) for row in cur.fetchall()]
+                rows = [dict(row) for row in cur.fetchall()]
+                if db_alias:
+                    rows = [r for r in rows if r.get("db_alias") == db_alias]
+                return rows
             return cur.lastrowid
-    
-    # Fallback for plain sqlite3 connecting
+
     db_path = getattr(backend, "db_path", "arivu.db")
     with sqlite3.connect(db_path, timeout=15.0) as conn:
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         cur.execute(query, params)
         if fetch:
-            return [dict(row) for row in cur.fetchall()]
+            rows = [dict(row) for row in cur.fetchall()]
+            if db_alias:
+                rows = [r for r in rows if r.get("db_alias") == db_alias]
+            return rows
         conn.commit()
         return cur.lastrowid
 
@@ -45,44 +50,67 @@ def _run_sql(query, params=(), fetch=False):
 
 @router.get("")
 def list_dashboards():
-    rows = _run_sql("SELECT * FROM dashboards ORDER BY created_at DESC", fetch=True)
+    db_alias = get_db_alias()
+    rows = _run_sql(
+        "SELECT * FROM dashboards WHERE db_alias = ? ORDER BY created_at DESC" if db_alias else "SELECT * FROM dashboards ORDER BY created_at DESC",
+        (db_alias,) if db_alias else (),
+        fetch=True
+    )
     return {"dashboards": rows}
 
 @router.post("")
 def create_dashboard(payload: dict = Body(...)):
+    db_alias = get_db_alias()
     name = payload.get("name", "New Dashboard")
     d_id = str(uuid.uuid4())[:8]
     _run_sql(
-        "INSERT INTO dashboards (id, name, layout, created_at) VALUES (?, ?, ?, ?)",
-        (d_id, name, "[]", time.time())
+        "INSERT INTO dashboards (id, name, layout, db_alias, created_at) VALUES (?, ?, ?, ?, ?)",
+        (d_id, name, "[]", db_alias, time.time())
     )
     return {"status": "created", "id": d_id}
 
 @router.get("/{dashboard_id}")
 def get_dashboard(dashboard_id: str):
-    rows = _run_sql("SELECT * FROM dashboards WHERE id = ?", (dashboard_id,), fetch=True)
+    db_alias = get_db_alias()
+    rows = _run_sql(
+        "SELECT * FROM dashboards WHERE id = ? AND (db_alias = ? OR db_alias IS NULL)",
+        (dashboard_id, db_alias),
+        fetch=True
+    )
     if not rows:
         raise HTTPException(status_code=404, detail="Dashboard not found")
-    
-    widgets = _run_sql("SELECT * FROM dashboard_widgets WHERE dashboard_id = ?", (dashboard_id,), fetch=True)
+
+    widgets = _run_sql(
+        "SELECT * FROM dashboard_widgets WHERE dashboard_id = ? AND (db_alias = ? OR db_alias IS NULL)",
+        (dashboard_id, db_alias),
+        fetch=True
+    )
     for w in widgets:
         w["data"] = json.loads(w["data_json"])
         w["position"] = json.loads(w["position"]) if w["position"] else None
-        
+
     dashboard = rows[0]
     dashboard["layout"] = json.loads(dashboard["layout"]) if dashboard["layout"] else []
-    
+
     return {"dashboard": dashboard, "widgets": widgets}
 
 @router.put("/{dashboard_id}/layout")
 def update_dashboard_layout(dashboard_id: str, payload: dict = Body(...)):
+    db_alias = get_db_alias()
     layout = json.dumps(payload.get("layout", []))
-    _run_sql("UPDATE dashboards SET layout = ? WHERE id = ?", (layout, dashboard_id))
+    _run_sql(
+        "UPDATE dashboards SET layout = ? WHERE id = ? AND (db_alias = ? OR db_alias IS NULL)",
+        (layout, dashboard_id, db_alias)
+    )
     return {"status": "success"}
 
 @router.delete("/{dashboard_id}")
 def delete_dashboard(dashboard_id: str):
-    _run_sql("DELETE FROM dashboards WHERE id = ?", (dashboard_id,))
+    db_alias = get_db_alias()
+    _run_sql(
+        "DELETE FROM dashboards WHERE id = ? AND (db_alias = ? OR db_alias IS NULL)",
+        (dashboard_id, db_alias)
+    )
     return {"status": "success"}
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -91,32 +119,40 @@ def delete_dashboard(dashboard_id: str):
 
 @router.post("/{dashboard_id}/widgets")
 def add_widget(dashboard_id: str, payload: dict = Body(...)):
-    """Pin a new widget to a dashboard."""
+    db_alias = get_db_alias()
     title = payload.get("title", "Widget")
     query = payload.get("query", "")
     sql = payload.get("sql", "")
     data = payload.get("data", [])
     c1_html = payload.get("c1_html", "")
     position = payload.get("position", {})
-    
+
     w_id = str(uuid.uuid4())[:8]
     _run_sql(
-        """INSERT INTO dashboard_widgets 
-           (id, dashboard_id, title, query, sql, data_json, c1_html, position, created_at) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        (w_id, dashboard_id, title, query, sql, json.dumps(data), c1_html, json.dumps(position), time.time())
+        """INSERT INTO dashboard_widgets
+           (id, dashboard_id, title, query, sql, data_json, c1_html, position, db_alias, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (w_id, dashboard_id, title, query, sql, json.dumps(data), c1_html, json.dumps(position), db_alias, time.time())
     )
     return {"status": "success", "id": w_id}
 
 @router.delete("/{dashboard_id}/widgets/{widget_id}")
 def delete_widget(dashboard_id: str, widget_id: str):
-    _run_sql("DELETE FROM dashboard_widgets WHERE id = ?", (widget_id,))
+    db_alias = get_db_alias()
+    _run_sql(
+        "DELETE FROM dashboard_widgets WHERE id = ? AND (db_alias = ? OR db_alias IS NULL)",
+        (widget_id, db_alias)
+    )
     return {"status": "success"}
 
 @router.post("/{dashboard_id}/widgets/{widget_id}/refresh")
 def refresh_widget(dashboard_id: str, widget_id: str):
-    """Re-runs the pipeline for this widget and re-generates the Thesys C1 chart."""
-    rows = _run_sql("SELECT * FROM dashboard_widgets WHERE id = ?", (widget_id,), fetch=True)
+    db_alias = get_db_alias()
+    rows = _run_sql(
+        "SELECT * FROM dashboard_widgets WHERE id = ? AND (db_alias = ? OR db_alias IS NULL)",
+        (widget_id, db_alias),
+        fetch=True
+    )
     if not rows:
         raise HTTPException(status_code=404, detail="Widget not found")
         
@@ -170,8 +206,8 @@ def refresh_widget(dashboard_id: str, widget_id: str):
         c1_html = c1_resp.get("c1_response", "")
 
         _run_sql(
-            "UPDATE dashboard_widgets SET sql = ?, data_json = ?, c1_html = ? WHERE id = ?",
-            (result.sql, json.dumps(raw_data), c1_html, widget_id)
+            "UPDATE dashboard_widgets SET sql = ?, data_json = ?, c1_html = ? WHERE id = ? AND (db_alias = ? OR db_alias IS NULL)",
+            (result.sql, json.dumps(raw_data), c1_html, widget_id, db_alias)
         )
         return {"status": "success"}
 

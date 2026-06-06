@@ -5,12 +5,12 @@ description: "A high-level overview of the Arivu Dashboard"
 
 <img
   className="block dark:hidden"
-  src="/images/arivu-monitoring-dash.png"
+  src="/images/dashboard-new.png"
   alt="Dashboard Interface Light"
 />
 <img
   className="hidden dark:block"
-  src="/images/arivu-monitoring-dash.png"
+  src="/images/dashboard-new.png"
   alt="Dashboard Interface Dark"
 />
 
@@ -18,31 +18,38 @@ description: "A high-level overview of the Arivu Dashboard"
 
 The Arivu Dashboard is the primary interface for interacting with your AI agent. It is built using Next.js and Tailwind CSS, featuring a beautiful, highly responsive interface that automatically adapts to your system theme.
 
+The dashboard uses a **Workspace (DB Tenant)** model. Instead of a single global environment, features like Chat, Dashboards, and Automations are scoped to a specific Database alias, allowing you to seamlessly switch contexts across multiple connections.
+
 <Steps>
   <Step title="Connect your Database">
     Before asking questions, you need to connect your database. Head over to the Connections module to securely link PostgreSQL, MySQL, SQLite, and more.
   </Step>
-  <Step title="Ask Questions">
-    Use the chat interface to ask natural language questions. The LangGraph agent will automatically write the SQL, execute it, and return the data.
+  <Step title="Select Workspace">
+    Navigate into a specific database alias from the sidebar. All subsequent actions (Chat, Automations, Dashboards) operate within this isolated tenant.
   </Step>
-  <Step title="Visualize Insights">
-    If the data returned is tabular, Arivu will automatically render interactive charts using the Thesys C1 Generative UI integration.
+  <Step title="Ask Questions & Build">
+    Use the chat interface to ask natural language questions. The LangGraph agent will automatically write the SQL, execute it, and return the data which you can visualize and pin to custom dashboards.
   </Step>
 </Steps>
+
+<img
+  src="/images/dashboard-db-new.png"
+  alt="Dashboard Interface Dark"
+/>
 
 ## Key Sections
 
 <CardGroup cols={2}>
-  <Card title="Connections" icon="plug" href="/dashboard/connections/overview">
-    Add, remove, and manage your database and LLM credentials.
+  <Card title="Connections & Integrations" icon="plug" href="/dashboard/connections/overview">
+    Add, remove, and manage your database credentials, LLM models, and app integrations.
   </Card>
-  <Card title="Chat Interface" icon="comments" href="/dashboard/connections/chat">
-    The main workspace for natural language analytics.
+  <Card title="Workspace: Chat" icon="comments" href="/dashboard/connections/chat">
+    The main workspace for natural language analytics within a specific database.
+  </Card>
+  <Card title="Workspace: Dashboards" icon="chart-simple" href="/dashboard/dashboards/overview">
+    Create interactive charts manually or pin them directly from chat results.
   </Card>
   <Card title="Pipeline Traces" icon="code-branch" href="/dashboard/monitoring/traces">
     Inspect node-level execution latency and state diffs.
-  </Card>
-  <Card title="Session History" icon="clock-rotate-left" href="/dashboard/monitoring/sessions">
-    Review past conversations and replay queries.
   </Card>
 </CardGroup>

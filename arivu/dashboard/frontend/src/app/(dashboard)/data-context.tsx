@@ -33,20 +33,25 @@ export function DashboardDataProvider({ children }: { children: React.ReactNode 
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
-    const [s, t, sess, e, r] = await Promise.all([
-      fetchStats(),
-      fetchTraces(undefined, 50),
-      fetchSessions(50),
-      fetchErrors(100),
-      fetchRLHF(100),
-    ]);
-    setStats(s);
-    setTraces(t?.traces ?? []);
-    setSessions(sess?.sessions ?? []);
-    setErrors(e?.errors ?? []);
-    setRlhf(r?.rlhf ?? []);
-    setLoading(false);
-    if (isRefresh) { setRefreshing(false); toast.success("Dashboard refreshed."); }
+    try {
+      const [s, t, sess, e, r] = await Promise.allSettled([
+        fetchStats(),
+        fetchTraces(undefined, 50),
+        fetchSessions(50),
+        fetchErrors(100),
+        fetchRLHF(100),
+      ]);
+      if (s.status === "fulfilled") setStats(s.value);
+      if (t.status === "fulfilled") setTraces(t.value?.traces ?? []);
+      if (sess.status === "fulfilled") setSessions(sess.value?.sessions ?? []);
+      if (e.status === "fulfilled") setErrors(e.value?.errors ?? []);
+      if (r.status === "fulfilled") setRlhf(r.value?.rlhf ?? []);
+    } catch (err) {
+      console.error("Dashboard data load failed:", err);
+    } finally {
+      setLoading(false);
+      if (isRefresh) { setRefreshing(false); toast.success("Dashboard refreshed."); }
+    }
   }, []);
 
   useEffect(() => {

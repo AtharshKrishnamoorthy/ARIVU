@@ -6,13 +6,18 @@ import type {
     SessionDetail,
     DashboardStats,
     HealthResponse,
+    RateLimitConfig,
+    ChatResponse,
+    SavedQuery,
+    SavedQueriesResponse,
+    SavedQueryResponse,
 } from "./types";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Base URL — in dev points to the FastAPI backend on port 9000
 // ─────────────────────────────────────────────────────────────────────────────
 
-const API_BASE =
+export const API_BASE =
     typeof window !== "undefined" &&
         (window.location.hostname === "localhost" ||
             window.location.hostname === "127.0.0.1")
@@ -27,15 +32,40 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T | nul
     try {
         const res = await fetch(`${API_BASE}${path}`, options);
         if (!res.ok) {
+            let errorMsg = `HTTP Error ${res.status}`;
             try {
-                const err = await res.json();
-                throw new Error(err.detail || `HTTP Error ${res.status}`);
-            } catch (e) {
-                if (e instanceof Error) throw e;
-                throw new Error(`HTTP Error ${res.status}`);
+                const text = await res.text();
+                try {
+                    const err = JSON.parse(text);
+                    errorMsg = err.detail || errorMsg;
+                } catch {
+                    if (text && text.trim().length > 0 && text.length < 200) {
+                        errorMsg = text.trim();
+                    }
+                }
+            } catch {
+                // Ignore errors reading response body
             }
+            throw new Error(errorMsg);
         }
-        return (await res.json()) as T;
+        
+        let text = "";
+        try {
+            text = await res.text();
+        } catch {
+            return null;
+        }
+
+        if (!text || text.trim() === "") {
+            return null;
+        }
+
+        try {
+            return JSON.parse(text) as T;
+        } catch (parseErr) {
+            console.error("Failed to parse JSON response:", text);
+            throw new Error("Invalid JSON response from server");
+        }
     } catch (err) {
         console.error("API error", err);
         throw err;
@@ -88,6 +118,14 @@ export async function fetchStats(): Promise<DashboardStats | null> {
 
 export async function fetchHealth(): Promise<HealthResponse | null> {
     return apiFetch<HealthResponse>("/api/health");
+}
+
+export async function fetchSessionHealth(sessionId: string): Promise<{ session_id: string; connection: string; status: string } | null> {
+    return apiFetch<{ session_id: string; connection: string; status: string }>(`/api/session/${sessionId}/health`);
+}
+
+export async function fetchConfig(): Promise<RateLimitConfig | null> {
+    return apiFetch<RateLimitConfig>("/api/chat/config");
 }
 
 // ── Command Center ───────────────────────────────────────────────────────────
@@ -151,12 +189,99 @@ export async function saveLLMConfig(config: any): Promise<any> {
     });
 }
 
-export async function chatDB(message: string, session_id: string): Promise<any> {
-    return apiFetch("/api/chat", {
+export async function fetchLLMStore(): Promise<{ entries: any[] } | null> {
+    return apiFetch("/api/llm/store");
+}
+
+export async function addLLMEntry(config: any): Promise<any> {
+    return apiFetch("/api/llm/store", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(config)
+    });
+}
+
+export async function activateLLMEntry(id: string): Promise<any> {
+    return apiFetch(`/api/llm/store/${id}/activate`, { method: "POST" });
+}
+
+export async function deleteLLMEntry(id: string): Promise<any> {
+    return apiFetch(`/api/llm/store/${id}`, { method: "DELETE" });
+}
+
+export async function chatDB(message: string, session_id: string): Promise<ChatResponse | null> {
+    return apiFetch<ChatResponse>("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message, session_id })
     });
+}
+
+export interface StreamCallbacks {
+    onProgress?: (text: string) => void;
+    onDone?: (data: ChatResponse) => void;
+    onError?: (error: string) => void;
+}
+
+export async function chatDBStream(
+    message: string,
+    session_id: string,
+    callbacks: StreamCallbacks
+): Promise<void> {
+    const res = await fetch(`${API_BASE}/api/chat/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message, session_id })
+    });
+
+    if (!res.ok) {
+        callbacks.onError?.(`HTTP Error ${res.status}`);
+        return;
+    }
+
+    const reader = res.body?.getReader();
+    if (!reader) {
+        callbacks.onError?.("ReadableStream not supported");
+        return;
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let event = "";
+
+    try {
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+                break;
+            }
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+
+            for (const line of lines) {
+                if (line.startsWith("event: ")) {
+                    event = line.slice(7);
+                    continue;
+                }
+                if (line.startsWith("data: ")) {
+                    const data = JSON.parse(line.slice(6));
+                    if (event === "progress") {
+                        callbacks.onProgress?.(data.text);
+                    } else if (event === "done") {
+                        callbacks.onDone?.(data);
+                    } else if (event === "error") {
+                        callbacks.onError?.(data.text);
+                    }
+                    event = "";
+                }
+            }
+        }
+    } catch (e) {
+        console.error("[chatDBStream] Error:", e);
+        callbacks.onError?.(e instanceof Error ? e.message : "Stream error");
+    }
 }
 
 export async function visualizeData(
@@ -211,7 +336,8 @@ export interface Automation {
     name: string;
     query: string;
     cron_expr: string;
-    action_type: "log" | "email" | "webhook";
+    connection_alias: string;
+    action_type: "log" | "email" | "webhook" | "slack" | "discord" | "telegram" | "whatsapp";
     action_config: Record<string, unknown>;
     enabled: boolean;
     last_run: number | null;
@@ -276,6 +402,51 @@ export async function testSMTPEmail(to: string): Promise<any> {
         body: JSON.stringify({ to }),
     });
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Integrations (media / messaging platforms)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type IntegrationPlatform =
+    | "slack" | "discord" | "telegram" | "whatsapp" | "webhook" | "email";
+
+export interface IntegrationStatus {
+    platform: IntegrationPlatform;
+    configured: boolean;
+}
+
+export async function fetchIntegrationPlatforms(): Promise<{ platforms: IntegrationStatus[] } | null> {
+    return apiFetch("/api/integrations/platforms");
+}
+
+export async function fetchIntegrations(): Promise<{ integrations: any[] } | null> {
+    return apiFetch("/api/integrations");
+}
+
+export async function fetchIntegration(platform: IntegrationPlatform): Promise<any> {
+    return apiFetch(`/api/integrations/${platform}`);
+}
+
+export async function saveIntegration(platform: IntegrationPlatform, config: Record<string, unknown>): Promise<any> {
+    return apiFetch(`/api/integrations/${platform}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(config),
+    });
+}
+
+export async function toggleIntegration(platform: IntegrationPlatform, enabled: boolean): Promise<any> {
+    return apiFetch(`/api/integrations/${platform}/toggle`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+    });
+}
+
+export async function deleteIntegration(platform: IntegrationPlatform): Promise<any> {
+    return apiFetch(`/api/integrations/${platform}`, { method: "DELETE" });
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Dashboards
@@ -345,6 +516,82 @@ export async function refreshDashboardWidget(dashboardId: string, widgetId: stri
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// DB Explorer
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function fetchExplorerSchema(alias: string): Promise<{ tables: { name: string; columns: { name: string; type: string }[] }[] } | null> {
+    return apiFetch(`/api/explorer/schema?alias=${encodeURIComponent(alias)}`);
+}
+
+export async function fetchExplorerPreview(alias: string, tableName: string): Promise<{ columns: string[]; rows: Record<string, any>[] } | null> {
+    return apiFetch(`/api/explorer/preview/${encodeURIComponent(tableName)}?alias=${encodeURIComponent(alias)}`);
+}
+
+export async function fetchExplorerQuery(payload: {
+    alias: string;
+    table: string;
+    columns: string[];
+    limit?: number;
+    aggregate?: string;
+}): Promise<{ columns: string[]; rows: Record<string, any>[] } | null> {
+    return apiFetch("/api/explorer/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Saved Queries
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function saveSavedQuery(
+    sessionId: string,
+    query: string,
+    sql: string,
+    notes: string = ""
+): Promise<{ status: string; data: SavedQuery } | null> {
+    return apiFetch("/api/saved-queries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId, query, sql, notes }),
+    });
+}
+
+export async function listSavedQueries(
+    limit: number = 50,
+    offset: number = 0
+): Promise<SavedQueriesResponse | null> {
+    return apiFetch(`/api/saved-queries?limit=${limit}&offset=${offset}`);
+}
+
+export async function getSavedQuery(queryId: string): Promise<SavedQueryResponse | null> {
+    return apiFetch(`/api/saved-queries/${queryId}`);
+}
+
+export async function listSessionSavedQueries(
+    sessionId: string,
+    limit: number = 50
+): Promise<SavedQueriesResponse | null> {
+    return apiFetch(`/api/saved-queries/sessions/${sessionId}/queries?limit=${limit}`);
+}
+
+export async function updateSavedQueryNotes(
+    queryId: string,
+    notes: string
+): Promise<SavedQueryResponse | null> {
+    return apiFetch(`/api/saved-queries/${queryId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes }),
+    });
+}
+
+export async function deleteSavedQuery(queryId: string): Promise<{ status: string; query_id: string } | null> {
+    return apiFetch(`/api/saved-queries/${queryId}`, { method: "DELETE" });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // WebSocket live feed
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -357,7 +604,7 @@ export function createLiveSocket(
     const host =
         window.location.hostname === "localhost" ||
             window.location.hostname === "127.0.0.1"
-            ? `${window.location.hostname}:9000`
+            ? `${window.location.hostname}:8000`
             : window.location.host;
 
     const ws = new WebSocket(`${protocol}://${host}/ws/live`);

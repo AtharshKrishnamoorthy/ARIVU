@@ -11,83 +11,48 @@ import { Callout, Steps, CardGroup, Card, Frame } from "mintlify/components";
 
 ## What is a Dashboard?
 
-Dashboards in Arivu are customizable, real-time analytical interfaces that display data from your queries, automations, and integrations in an organized, visual format. They enable you to monitor key metrics, trends, and system performance at a glance.
+Dashboards in Arivu are customizable visual interfaces that aggregate charts and metrics. Because Arivu operates on a **Workspace** model, dashboards are scoped to a specific database alias, allowing you to build tailored views for each data source.
+
+In Arivu, creating a dashboard is the first step. Once a dashboard is created, you populate it with charts.
 
 <CardGroup cols={2}>
-  <Card title="Real-time Updates" icon="zap">
-    Watch your data refresh automatically as new results come in.
+  <Card title="Database Scoped" icon="database">
+    Dashboards belong to specific database workspaces, keeping metrics isolated and secure.
   </Card>
   <Card title="Customizable Layout" icon="layout">
-    Drag, drop, and arrange widgets to match your workflow.
-  </Card>
-  <Card title="Multi-Source Data" icon="database">
-    Combine data from multiple databases and LLMs in one view.
-  </Card>
-  <Card title="Collaborative" icon="users">
-    Share dashboards with your team and track key metrics together.
+    Drag, drop, and resize charts neatly on a grid to match your workflow.
   </Card>
 </CardGroup>
 
-## Dashboard Features
+## The Workflow
 
-### Widget System
-Create widgets from saved queries and visualizations. Each widget displays live data with configurable refresh intervals.
-
-### Pin to Dashboard
-Mark important automations or queries to appear on your main dashboard for quick access and monitoring.
-
-### Interactive Visualizations
-Display data as tables, charts, gauges, and custom components for comprehensive insights.
-
-### Dashboard Variables
-Use filters and variables to customize dashboard views without requiring query modifications.
-
-## Creating Your First Dashboard
+To build your visual analytics, follow this simple two-step process:
 
 <Steps>
-  <Step title="Open Dashboards">
-    Navigate to the Dashboards section from the main menu
+  <Step title="Create a Dashboard">
+    Navigate to the Dashboards section inside your database workspace and click **Create Dashboard**. Give it a descriptive name.
   </Step>
-  <Step title="Create New Dashboard">
-    Click "Create Dashboard" and give it a descriptive name
-  </Step>
-  <Step title="Add Widgets">
-    Click "Add Widget" and select from your saved queries or automations
-  </Step>
-  <Step title="Customize Layout">
-    Drag widgets to arrange them in your preferred layout
-  </Step>
-  <Step title="Set Refresh Rate">
-    Configure how often each widget updates its data
-  </Step>
-  <Step title="Save">
-    Save your dashboard configuration
+  <Step title="Populate with Charts">
+    Once your dashboard is created, you can add charts to it using one of two methods:
+    
+    1. **Manual Creation**: Build a chart by selecting tables and mapping axes directly.
+    2. **Chat Interface**: Ask a question in chat and pin the resulting Generative UI chart to your dashboard.
   </Step>
 </Steps>
 
 <Callout type="tip">
-  Pro tip: Create multiple dashboards for different personas or business areas (e.g., Operations Dashboard, Sales Dashboard, Infrastructure Monitoring).
+  Pro tip: You can rearrange and resize charts at any time by dragging them around on the dashboard canvas. The layout saves automatically.
 </Callout>
-
-## Dashboard Best Practices
-
-### Organization
-- Group related metrics together for easier scanning
-- Use consistent naming conventions for clarity
-- Arrange by priority (most important metrics at the top)
-
-### Performance
-- Limit heavy queries to lower refresh rates (every 5+ minutes)
-- Use aggregated data rather than raw datasets
-- Archive old dashboards to keep the interface clean
-
-### Accessibility
-- Choose contrasting colors for charts
-- Label all axes and metrics clearly
-- Add descriptions to complex visualizations
 
 ## Next Steps
 
-- [Learn about Widgets](./widgets.mdx)
-- [Explore Dashboard Integrations](./integrations.mdx)
-- [Set up Real-time Monitoring](../automations/overview.mdx)
+Learn how to populate your dashboards using our supported methods:
+
+<CardGroup cols={2}>
+  <Card title="Manual Charts" icon="chart-bar" href="./manual-charts.mdx">
+    Create per-table charts manually by configuring columns, X, and Y axes.
+  </Card>
+  <Card title="Chat Charts" icon="sparkles" href="./chat-charts.mdx">
+    Pin AI-generated charts directly from the Chat interface.
+  </Card>
+</CardGroup>

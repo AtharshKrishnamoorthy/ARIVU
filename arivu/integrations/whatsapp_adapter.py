@@ -88,6 +88,28 @@ class WhatsAppIntegration(BaseIntegration):
         self.admin_numbers = set(admin_numbers or [])
         self._fastapi_app  = None
 
+    def _get_pending_session(self, admin_number: str) -> Optional[str]:
+        """Look up pending session for an admin from the memory backend."""
+        from ..memory.store import _get_backend
+        data = _get_backend().get_config("whatsapp:pending")
+        if data:
+            return data.get(admin_number)
+        return None
+
+    def _set_pending_session(self, admin_number: str, session_id: str) -> None:
+        """Store pending session mapping in the memory backend."""
+        from ..memory.store import _get_backend
+        data = _get_backend().get_config("whatsapp:pending") or {}
+        data[admin_number] = session_id
+        _get_backend().save_config("whatsapp:pending", data)
+
+    def _clear_pending_session(self, admin_number: str) -> None:
+        """Remove pending session mapping for an admin."""
+        from ..memory.store import _get_backend
+        data = _get_backend().get_config("whatsapp:pending") or {}
+        data.pop(admin_number, None)
+        _get_backend().save_config("whatsapp:pending", data)
+
     # ─────────────────────────────────────────
     # Lifecycle
     # ─────────────────────────────────────────
@@ -126,14 +148,18 @@ class WhatsAppIntegration(BaseIntegration):
     # ─────────────────────────────────────────
 
     def send_message(self, user_id: str, text: str) -> None:
-        """Send a WhatsApp message via Twilio. user_id is E164 number."""
+        """Send a WhatsApp message via Twilio. user_id is E164 number or whatsapp:+number."""
         client = self._get_twilio_client()
+        # Always normalize both numbers to include the whatsapp: scheme
         to_number = user_id if user_id.startswith("whatsapp:") else f"whatsapp:{user_id}"
+        from_num  = self.from_number if self.from_number.startswith("whatsapp:") else f"whatsapp:{self.from_number}"
+
+        logger.info(f"[whatsapp] sending from={from_num!r}  to={to_number!r}")
 
         # Twilio WhatsApp has a 1600-char limit — chunk if needed
         for chunk in _chunk_text(text, max_len=1500):
             client.messages.create(
-                from_=self.from_number,
+                from_=from_num,
                 to=to_number,
                 body=chunk,
             )
@@ -151,10 +177,11 @@ class WhatsAppIntegration(BaseIntegration):
             f"*From:* {user_id}\n"
             f"*Question:* {question}\n\n"
             f"*SQL:*\n{sql}\n\n"
-            f"*Session:* {session_id[:8]}\n\n"
-            f"Reply APPROVE or REJECT"
+            f"*Session:* `{session_id[:12]}`\n\n"
+            f"Reply *APPROVE* to run or *REJECT* to cancel"
         )
         for admin_number in self.admin_numbers:
+            self._set_pending_session(admin_number, session_id)
             self.send_message(admin_number, text)
 
     # ─────────────────────────────────────────
@@ -217,13 +244,23 @@ class WhatsAppIntegration(BaseIntegration):
 
             resp = MessagingResponse()
 
-            # ── Approval keywords ────────────────────────────────────────
+            # ── Approval keywords — look up pending approval for this admin ──
             if body.lower() in APPROVE_KEYWORDS:
-                integration.handle_approve(user_id, session_id)
+                pending_sid = integration._get_pending_session(from_number)
+                if pending_sid:
+                    integration.handle_approve(from_number, pending_sid)
+                    integration._clear_pending_session(from_number)
+                else:
+                    resp.message("No pending approval found for your number.")
                 return PlainTextResponse(content=str(resp), media_type="application/xml")
 
             if body.lower() in REJECT_KEYWORDS:
-                integration.handle_reject(user_id, session_id)
+                pending_sid = integration._get_pending_session(from_number)
+                if pending_sid:
+                    integration.handle_reject(from_number, pending_sid)
+                    integration._clear_pending_session(from_number)
+                else:
+                    resp.message("No pending approval found for your number.")
                 return PlainTextResponse(content=str(resp), media_type="application/xml")
 
             # ── RLHF keywords ────────────────────────────────────────────

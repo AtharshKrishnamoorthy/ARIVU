@@ -1,0 +1,12 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: arivu/dashboard/backend/Dockerfile
+    image: atharshkrish/arivu-backend:latest
+
+  frontend:
+    build:
+      context: arivu/dashboard/frontend/
+      dockerfile: Dockerfile
+    image: atharshkrish/arivu-frontend:latest

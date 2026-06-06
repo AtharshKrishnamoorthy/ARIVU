@@ -45,6 +45,7 @@ class GraphState:
     dialect: str = ""                 # "postgresql" | "mysql" | "sqlite" | "snowflake" | "databricks"
     connection_meta: dict = field(default_factory=dict)  # {dialect, host, port, dbname, ...}
     interface: str = "dashboard"      # Originating platform (e.g., "dashboard", "slack")
+    db_alias: str = ""                # Active database alias for memory scoping
 
     # ── SQL generation ───────────────────────────────────────────────────
     sql: str = ""
