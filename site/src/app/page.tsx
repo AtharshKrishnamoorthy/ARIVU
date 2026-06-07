@@ -125,7 +125,7 @@ function LogoGrid({ items }: { items: typeof databases; cols?: number }) {
               className={`object-contain ${logo.invert ? "invert opacity-50" : "opacity-60"} group-hover:opacity-100 transition-opacity duration-300`}
               unoptimized
             />
-            <span className="text-[10px] font-medium text-white/35 group-hover:text-white/60 transition-colors tracking-wide">
+            <span className="text-[10px] font-medium text-black/35 dark:text-white/35 group-hover:text-black/60 dark:text-white/60 transition-colors tracking-wide">
               {logo.name}
             </span>
           </div>
@@ -140,7 +140,7 @@ function LogoGrid({ items }: { items: typeof databases; cols?: number }) {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[10px] font-mono uppercase tracking-widest text-white/40 border border-white/8 bg-white/[0.03] mb-5">
+    <span className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[10px] font-mono uppercase tracking-widest text-black/40 dark:text-white/40 border border-black/8 dark:border-white/8 bg-white/[0.03] mb-5">
       {children}
     </span>
   );
@@ -164,7 +164,7 @@ function DashboardMockup() {
         scale: springScale,
         boxShadow: "0 30px 100px -20px rgba(59,130,246,0.3)",
       }}
-      className="w-full max-w-6xl rounded-xl md:rounded-2xl border border-white/10 bg-[#0a0a0a] overflow-hidden relative shadow-2xl mx-auto perspective-[2000px] flex items-center justify-center"
+      className="w-full max-w-6xl rounded-xl md:rounded-2xl border border-black/10 dark:border-white/10 bg-[#0a0a0a] overflow-hidden relative shadow-2xl mx-auto perspective-[2000px] flex items-center justify-center"
     >
       <img src="/dashboard-db-new.png" alt="Arivu Dashboard" className="w-full h-auto object-contain" />
       <div className="absolute inset-0 ring-1 ring-inset ring-white/10 rounded-xl md:rounded-2xl pointer-events-none" />
@@ -205,9 +205,9 @@ const highlightCode = (str: string) => {
   return str
     .replace(/(".*?")/g, "<span class='text-amber-300/80'>$1</span>")
     .replace(/\b(from|import|True)\b/g, "<span class='text-sky-400'>$1</span>")
-    .replace(/\b(Arivu|app|q|response)\b/g, "<span class='text-white/90'>$1</span>")
+    .replace(/\b(Arivu|app|q|response)\b/g, "<span class='text-black/90 dark:text-white/90'>$1</span>")
     .replace(/\.(connect|query|run_pipeline)\b/g, ".<span class='text-emerald-400'>$1</span>")
-    .replace(/(#.*)/g, "<span class='text-white/30'>$1</span>")
+    .replace(/(#.*)/g, "<span class='text-black/30 dark:text-white/30'>$1</span>")
     .replace(/\b(print)\b/g, "<span class='text-purple-400'>$1</span>");
 };
 
@@ -231,25 +231,25 @@ function AnimatedTerminal() {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -32 }}
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      className="rounded-xl md:rounded-2xl border border-white/8 bg-[#0a0a0a] overflow-hidden w-full max-w-4xl mx-auto shadow-2xl"
+      className="rounded-xl md:rounded-2xl border border-black/8 dark:border-white/8 bg-[#0a0a0a] overflow-hidden w-full max-w-4xl mx-auto shadow-2xl"
     >
-      <div className="flex items-center justify-between px-5 py-4 border-b border-white/6 bg-white/[0.01]">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-black/6 dark:border-white/6 bg-white/[0.01]">
         <div className="flex gap-2">
           <div className="w-3.5 h-3.5 rounded-full bg-red-500/40 border border-red-500/50" />
           <div className="w-3.5 h-3.5 rounded-full bg-amber-500/40 border border-amber-500/50" />
           <div className="w-3.5 h-3.5 rounded-full bg-emerald-500/40 border border-emerald-500/50" />
         </div>
-        <span className="font-mono text-xs text-white/30 tracking-wider flex items-center gap-2">
+        <span className="font-mono text-xs text-black/30 dark:text-white/30 tracking-wider flex items-center gap-2">
           <Terminal className="w-3.5 h-3.5" /> main.py
         </span>
         <div className="w-14" />
       </div>
-      <div className="p-6 md:p-8 overflow-x-auto h-[400px] text-[13px] md:text-[15px] font-mono leading-relaxed text-white/70 whitespace-pre">
+      <div className="p-6 md:p-8 overflow-x-auto h-[400px] text-[13px] md:text-[15px] font-mono leading-relaxed text-black/70 dark:text-white/70 whitespace-pre">
         <span dangerouslySetInnerHTML={{ __html: highlightCode(typedText) }} />
         <motion.span
           animate={{ opacity: [1, 0] }}
           transition={{ repeat: Infinity, duration: 0.8 }}
-          className="inline-block w-2.5 h-5 bg-white/60 translate-y-1 ml-1"
+          className="inline-block w-2.5 h-5 bg-white/60 dark:bg-black/60 dark:bg-white/60 translate-y-1 ml-1"
         />
       </div>
     </motion.div>
@@ -263,7 +263,7 @@ function ProductShowcase() {
   return (
     <section className="w-full px-4 sm:px-6 pb-28 pt-8 flex flex-col items-center">
       {/* Content Area */}
-      <div className="w-full relative min-h-[250px] md:min-h-[400px] flex justify-center mb-8">
+      <div className="w-full relative flex justify-center mb-8">
         <AnimatePresence mode="wait">
           {activeTab === "dashboard" ? (
             <motion.div
@@ -272,7 +272,7 @@ function ProductShowcase() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.4 }}
-              className="w-full max-w-5xl rounded-md overflow-hidden border border-white/10 shadow-[0_0_80px_rgba(255,255,255,0.05)] bg-black/50"
+              className="w-full max-w-5xl rounded-md overflow-hidden border border-black/10 dark:border-white/10 shadow-[0_0_80px_rgba(255,255,255,0.05)] bg-white/50 dark:bg-black/50"
             >
               <video
                 src="/motion-video.mp4"
@@ -300,24 +300,24 @@ function ProductShowcase() {
       </div>
 
       {/* Toggle Tab */}
-      <div className="flex items-center p-1.5 bg-white/[0.03] border border-white/10 rounded-full mt-4 backdrop-blur-md shadow-2xl relative z-30">
+      <div className="flex items-center p-1.5 bg-white/[0.03] border border-black/10 dark:border-white/10 rounded-full mt-4 backdrop-blur-md shadow-2xl relative z-30">
         <button
           onClick={() => setActiveTab("dashboard")}
-          className={`relative p-2 rounded-full flex items-center justify-center transition-colors duration-300 ${activeTab === "dashboard" ? "text-black" : "text-white/50 hover:text-white"}`}
+          className={`relative p-2 rounded-full flex items-center justify-center transition-colors duration-300 ${activeTab === "dashboard" ? "text-white dark:text-black" : "text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white dark:text-black dark:text-white"}`}
           title="Dashboard"
         >
           {activeTab === "dashboard" && (
-            <motion.div layoutId="activeTab" className="absolute inset-0 bg-white rounded-full shadow-md" transition={{ type: "spring", stiffness: 300, damping: 25 }} />
+            <motion.div layoutId="activeTab" className="absolute inset-0 bg-white dark:bg-black dark:bg-white rounded-full shadow-md" transition={{ type: "spring", stiffness: 300, damping: 25 }} />
           )}
           <LayoutDashboard className="relative z-10 w-5 h-5" />
         </button>
         <button
           onClick={() => setActiveTab("sdk")}
-          className={`relative p-2 rounded-full flex items-center justify-center transition-colors duration-300 ${activeTab === "sdk" ? "text-black" : "text-white/50 hover:text-white"}`}
+          className={`relative p-2 rounded-full flex items-center justify-center transition-colors duration-300 ${activeTab === "sdk" ? "text-white dark:text-black" : "text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white dark:text-black dark:text-white"}`}
           title="Python SDK"
         >
           {activeTab === "sdk" && (
-            <motion.div layoutId="activeTab" className="absolute inset-0 bg-white rounded-full shadow-md" transition={{ type: "spring", stiffness: 300, damping: 25 }} />
+            <motion.div layoutId="activeTab" className="absolute inset-0 bg-white dark:bg-black dark:bg-white rounded-full shadow-md" transition={{ type: "spring", stiffness: 300, damping: 25 }} />
           )}
           <Code2 className="relative z-10 w-5 h-5" />
         </button>
@@ -344,7 +344,7 @@ export default function HomePage() {
         >
           {/* Badge — original style */}
           <motion.div variants={itemAnim} className="mb-6 flex justify-center">
-            <span className="inline-flex items-center rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-white/70 border border-white/10 bg-white/5 backdrop-blur-md">
+            <span className="inline-flex items-center rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-black/70 dark:text-white/70 border border-black/10 dark:border-white/10 bg-white/5 dark:bg-black/5 dark:bg-white/5 backdrop-blur-md">
               <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 mr-2 shrink-0 animate-pulse" />
               v0.3 Open Source Release
             </span>
@@ -353,7 +353,7 @@ export default function HomePage() {
           {/* Heading — original white fade gradient */}
           <motion.h1
             variants={itemAnim}
-            className="text-5xl md:text-7xl font-extrabold tracking-tighter mb-6 bg-clip-text text-transparent bg-gradient-to-b from-white to-white/60"
+            className="text-5xl md:text-7xl font-extrabold tracking-tighter mb-6 bg-clip-text text-transparent bg-gradient-to-b from-black dark:from-white to-black/60 dark:to-white/60"
           >
             The Agentic Database <br className="hidden md:block" /> Command Center
           </motion.h1>
@@ -361,7 +361,7 @@ export default function HomePage() {
           {/* Sub */}
           <motion.p
             variants={itemAnim}
-            className="text-base md:text-lg text-white/45 mb-10 max-w-xl mx-auto leading-relaxed"
+            className="text-base md:text-lg text-black/45 dark:text-white/45 mb-10 max-w-xl mx-auto leading-relaxed"
           >
             Arivu bridges your data and AI — a scalable Python SDK with a beautiful no-code observability dashboard for orchestrating intelligent data pipelines.
           </motion.p>
@@ -374,14 +374,14 @@ export default function HomePage() {
             <Link
               href="https://github.com/AtharshKrishnamoorthy/ARIVU"
               target="_blank"
-              className="flex items-center gap-2 rounded-full bg-white text-black px-6 py-3 font-semibold transition-all hover:bg-white/90 hover:scale-105 active:scale-95"
+              className="flex items-center gap-2 rounded-full bg-white dark:bg-black dark:bg-white text-white dark:text-black px-6 py-3 font-semibold transition-all hover:bg-black/90 dark:hover:bg-white/90 dark:bg-black/90 dark:bg-white/90 hover:scale-105 active:scale-95"
             >
               <Terminal className="h-4 w-4" />
               pip install arivu-ai
             </Link>
             <Link
               href="#features"
-              className="flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-6 py-3 font-medium text-white transition-all hover:bg-white/10"
+              className="flex items-center gap-2 rounded-full border border-black/20 dark:border-white/20 bg-white/5 dark:bg-black/5 dark:bg-white/5 px-6 py-3 font-medium text-white dark:text-black dark:text-white transition-all hover:bg-black/10 dark:hover:bg-white/10 dark:bg-black/10 dark:bg-white/10"
             >
               Explore Features
               <ArrowRight className="h-4 w-4" />
@@ -394,7 +394,7 @@ export default function HomePage() {
       </section>
 
       {/* ── Features ─────────────────────────────────────────────────────── */}
-      <section id="features" className="w-full max-w-6xl px-4 sm:px-6 py-24 border-t border-white/6">
+      <section id="features" className="w-full max-w-6xl px-4 sm:px-6 py-24 border-t border-black/6 dark:border-white/6">
         <motion.div
           className="text-center mb-16"
           initial="hidden"
@@ -408,7 +408,7 @@ export default function HomePage() {
           <motion.h2 variants={itemAnim} className="text-3xl md:text-4xl font-bold tracking-tight mb-4">
             Powerful Agentic Capabilities
           </motion.h2>
-          <motion.p variants={itemAnim} className="text-white/40 max-w-xl mx-auto text-base leading-relaxed">
+          <motion.p variants={itemAnim} className="text-black/40 dark:text-white/40 max-w-xl mx-auto text-base leading-relaxed">
             Everything you need to orchestrate pipelines, observe agent reasoning, and manage federated connections — unified.
           </motion.p>
         </motion.div>
@@ -432,7 +432,7 @@ export default function HomePage() {
               <motion.div
                 key={f.title}
                 variants={itemAnim}
-                className={`group relative rounded-3xl border border-white/7 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/12 p-8 transition-all duration-300 overflow-hidden flex flex-col justify-between ${colSpan}`}
+                className={`group relative rounded-3xl border border-black/7 dark:border-white/7 bg-white/[0.02] hover:bg-white/[0.04] hover:border-black/12 dark:border-white/12 p-8 transition-all duration-300 overflow-hidden flex flex-col justify-between ${colSpan}`}
               >
                 {/* Hover glow */}
                 <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none ${c.bg} blur-3xl scale-150`} />
@@ -440,10 +440,10 @@ export default function HomePage() {
                   <Icon className="h-6 w-6" />
                 </div>
                 <div>
-                  <h3 className="relative text-lg font-semibold mb-3 tracking-tight text-white/90">
+                  <h3 className="relative text-lg font-semibold mb-3 tracking-tight text-black/90 dark:text-white/90">
                     {f.title}
                   </h3>
-                  <p className="relative text-sm text-white/40 leading-relaxed font-medium">
+                  <p className="relative text-sm text-black/40 dark:text-white/40 leading-relaxed font-medium">
                     {f.desc}
                   </p>
                 </div>
@@ -460,7 +460,7 @@ export default function HomePage() {
       <ArchitectureDiagram />
 
       {/* ── Ecosystem ────────────────────────────────────────────────────── */}
-      <section id="ecosystem" className="w-full border-t border-white/6">
+      <section id="ecosystem" className="w-full border-t border-black/6 dark:border-white/6">
 
         {/* Databases */}
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-20">
@@ -477,7 +477,7 @@ export default function HomePage() {
             <motion.h2 variants={itemAnim} className="text-2xl font-bold mb-3 tracking-tight">
               Supported Databases
             </motion.h2>
-            <motion.p variants={itemAnim} className="text-white/35 text-sm max-w-md mx-auto">
+            <motion.p variants={itemAnim} className="text-black/35 dark:text-white/35 text-sm max-w-md mx-auto">
               Connect and federate data from your favorite warehouses and SQL databases.
             </motion.p>
           </motion.div>
@@ -486,7 +486,7 @@ export default function HomePage() {
 
         {/* Divider */}
         <div className="max-w-5xl mx-auto px-4">
-          <div className="h-px bg-white/6" />
+          <div className="h-px bg-white/6 dark:bg-black/6 dark:bg-white/6" />
         </div>
 
         {/* Models */}
@@ -504,7 +504,7 @@ export default function HomePage() {
             <motion.h2 variants={itemAnim} className="text-2xl font-bold mb-3 tracking-tight">
               Supported LLM Providers
             </motion.h2>
-            <motion.p variants={itemAnim} className="text-white/35 text-sm max-w-md mx-auto">
+            <motion.p variants={itemAnim} className="text-black/35 dark:text-white/35 text-sm max-w-md mx-auto">
               Arivu routes intelligently to your preferred model provider automatically.
             </motion.p>
           </motion.div>
@@ -513,7 +513,7 @@ export default function HomePage() {
 
         {/* Divider */}
         <div className="max-w-5xl mx-auto px-4">
-          <div className="h-px bg-white/6" />
+          <div className="h-px bg-white/6 dark:bg-black/6 dark:bg-white/6" />
         </div>
 
         {/* Platforms */}
@@ -531,7 +531,7 @@ export default function HomePage() {
             <motion.h2 variants={itemAnim} className="text-2xl font-bold mb-3 tracking-tight">
               Communication Platforms
             </motion.h2>
-            <motion.p variants={itemAnim} className="text-white/35 text-sm max-w-md mx-auto">
+            <motion.p variants={itemAnim} className="text-black/35 dark:text-white/35 text-sm max-w-md mx-auto">
               Deploy directly to the platforms your team already uses, plus REST API for full control.
             </motion.p>
           </motion.div>
@@ -539,7 +539,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="w-full border-t border-white/6">
+      <section className="w-full border-t border-black/6 dark:border-white/6">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-28 flex flex-col items-center text-center relative overflow-hidden">
           <motion.div
             className="flex justify-center mb-5"
@@ -560,7 +560,7 @@ export default function HomePage() {
             Start querying your data intelligently today
           </motion.h2>
           <motion.p
-            className="text-white/40 text-base mb-10 max-w-md leading-relaxed"
+            className="text-black/40 dark:text-white/40 text-base mb-10 max-w-md leading-relaxed"
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -578,14 +578,14 @@ export default function HomePage() {
             <Link
               href="https://github.com/AtharshKrishnamoorthy/ARIVU"
               target="_blank"
-              className="flex items-center gap-2 rounded-full bg-white text-black px-6 py-3 font-semibold transition-all hover:bg-white/90 hover:scale-105 active:scale-95"
+              className="flex items-center gap-2 rounded-full bg-white dark:bg-black dark:bg-white text-white dark:text-black px-6 py-3 font-semibold transition-all hover:bg-black/90 dark:hover:bg-white/90 dark:bg-black/90 dark:bg-white/90 hover:scale-105 active:scale-95"
             >
               <GitBranch className="h-4 w-4" />
               View on GitHub
             </Link>
             <Link
               href="#sdk"
-              className="flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-6 py-3 font-medium text-white transition-all hover:bg-white/10"
+              className="flex items-center gap-2 rounded-full border border-black/20 dark:border-white/20 bg-white/5 dark:bg-black/5 dark:bg-white/5 px-6 py-3 font-medium text-white dark:text-black dark:text-white transition-all hover:bg-black/10 dark:hover:bg-white/10 dark:bg-black/10 dark:bg-white/10"
             >
               <Terminal className="h-4 w-4" />
               pip install arivu-ai

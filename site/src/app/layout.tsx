@@ -7,6 +7,8 @@ import Link from "next/link";
 import GithubStarButton from "./components/GithubStarButton";
 import DotBackground from "./components/DotBackground";
 
+import MobileMenu from "./components/MobileMenu";
+
 export const metadata: Metadata = {
   title: "Arivu — The Agentic Database Command Center",
   description: "Open-source framework for autonomous database agents. Python SDK + no-code observability dashboard.",
@@ -33,25 +35,26 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           />
 
           {/* Navigation Header */}
-          <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-black/70 backdrop-blur-xl">
-            <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-              <div className="flex items-center gap-6">
+          <div className="sticky top-6 z-50 w-full flex justify-center px-4 sm:px-6">
+            <header className="w-auto rounded-full border border-white/10 bg-black/70 backdrop-blur-xl shadow-2xl relative">
+              <div className="flex h-14 items-center justify-center px-6 gap-8">
                 <Link href="/" className="flex items-center transition-opacity hover:opacity-80">
-                  <img src="/arivu-logo-dark.png" alt="Arivu Logo" className="h-8 w-auto object-contain" />
+                  <img src="/arivu-logo-dark.png" alt="Arivu Logo" className="h-7 w-auto object-contain" />
                 </Link>
-                <nav className="hidden md:flex items-center gap-5 text-sm font-medium text-white/55">
+                <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-white/55">
                   <Link href="/#features" className="transition-colors hover:text-white">Features</Link>
                   <Link href="/#integrations" className="transition-colors hover:text-white">Integrations</Link>
                   <Link href="https://pypi.org/project/arivu-ai/" target="_blank" className="transition-colors hover:text-white">SDK</Link>
                   <Link href="https://arivu.mintlify.app/" target="_blank" className="transition-colors hover:text-white">Docs</Link>
                 </nav>
-              </div>
 
-              <div className="flex items-center gap-3">
-                <GithubStarButton />
+                <div className="flex items-center gap-2">
+                  <GithubStarButton />
+                  <MobileMenu />
+                </div>
               </div>
-            </div>
-          </header>
+            </header>
+          </div>
 
           <main className="flex-1">{children}</main>
 
