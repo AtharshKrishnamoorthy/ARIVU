@@ -272,7 +272,7 @@ function ProductShowcase() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.4 }}
-              className="w-full max-w-5xl aspect-video rounded-md overflow-hidden border border-white/10 shadow-[0_0_80px_rgba(255,255,255,0.05)] bg-black/50"
+              className="w-full max-w-5xl rounded-md overflow-hidden border border-white/10 shadow-[0_0_80px_rgba(255,255,255,0.05)] bg-black/50"
             >
               <video
                 src="/motion-video.mp4"
@@ -281,7 +281,7 @@ function ProductShowcase() {
                 muted
                 playsInline
                 controls
-                className="w-full h-full object-cover"
+                className="w-full h-auto object-contain"
               />
             </motion.div>
           ) : (

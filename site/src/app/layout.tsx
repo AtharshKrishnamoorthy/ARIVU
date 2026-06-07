@@ -10,6 +10,9 @@ import DotBackground from "./components/DotBackground";
 export const metadata: Metadata = {
   title: "Arivu — The Agentic Database Command Center",
   description: "Open-source framework for autonomous database agents. Python SDK + no-code observability dashboard.",
+  icons: {
+    icon: "/arivu-logo-dark.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
